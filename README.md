@@ -73,11 +73,11 @@ LUAR has two engines, the "brains" that read your text. You can install one or b
 
 | Engine | What it is | Speed (laptop, no GPU) | Download |
 |---|---|---|---|
-| **Laya** | An open decision model built for this kind of question: it answers with probabilities instead of writing text. | Fast: about 0.6 s per row | ~1.5 GB the first time (libraries + model) |
-| **LM Studio** | Any chat model you run in the free [LM Studio](https://lmstudio.ai) app (tested with Qwen 3.5 4B). | Slower: about 5 s per row *for each question* | LUAR itself is ~200 MB; the model is downloaded in LM Studio (Qwen 3.5 4B: 3.4 GB) |
+| **Laya** | An open decision model built for this kind of question: it answers with probabilities instead of writing text. | Fast: about 1 s per row | ~1.5 GB the first time (libraries + model) |
+| **LM Studio** | Any chat model you run in the free [LM Studio](https://lmstudio.ai) app (tested with Qwen 3.5 4B). | Slow: about 8 s per row *for each question* | LUAR itself is ~200 MB; the model is downloaded in LM Studio (Qwen 3.5 4B: 3.4 GB) |
 
-Not sure? **Start with Laya**: it needs no other app and is much faster. Section 8 explains when
-LM Studio is worth it.
+Not sure? **Use Laya**: it needs no other app, is at least 8 times faster, and was as accurate or
+more accurate on real data in our tests (section 8).
 
 ---
 
@@ -194,9 +194,11 @@ The quality of the answers depends mostly on how the questions are written.
 | `noul` | the answer is **yes or no** | `yes` or `no` | *Does the customer ask for their money back?* |
 | `score` ⚠️ | the answer is a **level on a scale** | one of your levels, in order from lowest to highest | *How serious is the problem?* none / minor / major |
 
-> ⚠️ **`score` is experimental.** It was the least reliable type in our tests: 71% (Laya) and 79%
-> (LM Studio) agreement with answers given by hand. Prefer `choice` or `noul` when you can, and
-> check `score` results yourself.
+> ⚠️ **`score` is experimental.** It was the least reliable type in our tests: on 300 real product
+> reviews, Laya matched the customer's own star rating (1 to 5) only 26% of the time, although 60%
+> of its answers were within one star. Prefer `choice` or `noul` when you can, and check `score`
+> results yourself. Because its confidence is almost always low, a `score` question does not mark
+> rows for review.
 
 ### Tips
 
@@ -213,6 +215,10 @@ The quality of the answers depends mostly on how the questions are written.
    reordering and compare (section 7 shows how to measure).
 7. **Write in the language of your data.** Questions and options can be in any language the engine
    supports.
+8. **Be careful with "middle" options such as `neutral`.** On real reviews, Laya got positive and
+   negative right 82–87% of the time but almost never chose `neutral` (3 of 60). If you need a middle
+   option, describe it well and measure it with `expected_` columns (section 7); two yes/no questions
+   ("Is it positive?", "Is it negative?") can be an alternative worth testing.
 
 ### Questions file format
 
@@ -266,7 +272,7 @@ And two columns for the whole row:
 
 | Column | Meaning |
 |---|---|
-| `needs_review` | `yes` if any answer in the row is below the confidence threshold. Filter by it to find the rows a person should check. |
+| `needs_review` | `yes` if any answer in the row is below the confidence threshold (`score` questions excepted, see section 5). Filter by it to find the rows a person should check. |
 | `review_reasons` | Which questions were uncertain (for example `topic, sentiment`), or `empty text` if the row had no text. |
 
 Rows with no text are not sent to the engine; they are marked `needs_review` with the reason `empty text`.
@@ -286,8 +292,9 @@ The `_summary.md` file contains:
 ### How much to trust the confidence
 
 The confidence is a real probability computed by the engine, not a number the model makes up. It is
-a good **guide** to where mistakes are likely, but a model can still be confidently wrong. That is
-why the next section matters.
+a good **guide** to where mistakes are likely, but how good depends on your data. In our tests, Laya
+was right 98% of the time when its confidence was 0.7 or more on news topics, but only 72–75% on
+customer reviews. A model can be confidently wrong, which is why the next section matters.
 
 ---
 
@@ -311,16 +318,28 @@ The `expected_` columns are never shown to the model, so they cannot leak the an
 
 ## 8. Choosing an engine: Laya or LM Studio
 
+We measured both engines on 300 texts from two public datasets labeled by people, on a laptop
+without a dedicated GPU ([details and script](https://github.com/HayateV30/luar/tree/main/bench)):
+
 | | Laya | LM Studio (Qwen 3.5 4B) |
 |---|---|---|
-| Accuracy on our `choice`/`noul` examples | 86–100% | 100% |
-| Accuracy on our `score` example | 71% | 79% |
-| Time per row, 3 questions (laptop, no GPU) | ~0.6 s | ~14 s |
+| **News topic** (English, AG News, 4 topics) | **93%** | 89% |
+| **Would recommend?** (Portuguese reviews, B2W) | 70% | not measured* |
+| **Sentiment** positive / neutral / negative (B2W) | 68% (neutral: 5%) | not measured* |
+| **Star rating 1–5** (`score`, B2W) | 26% (60% within one star) | not measured* |
+| Right when confidence ≥ 0.7 | 98% news · 72–75% reviews | 93% news |
+| Time per row | ~1 s (1 question) to ~1.3 s (3 questions) | ~8 s per question |
 | Needs another app | No | Yes, LM Studio |
-| Best for | large files, quick passes | smaller files, when accuracy matters most |
 
-A good routine: **test both on your sample with `expected_` columns** (section 7) and keep the one
-that is accurate enough at a speed you can live with.
+<sub>*Stopped: at ~8 s per question, 300 reviews × 3 questions would have taken about 2 hours on the
+test machine. Review labels come from the customers' own ratings, which do not always match the
+text, so they are a hard, noisy test.</sub>
+
+**Laya is the better default**: faster, no extra app, and at least as accurate where we could
+compare. On our short hand-written examples LM Studio scored higher (100%), but that advantage did
+not hold on real news. LM Studio is worth trying when Laya does poorly on your own sample (for
+example with unusual questions or languages) and the file is small. Either way, **measure on your
+sample with `expected_` columns** (section 7) before trusting a large run.
 
 ### Setting up LM Studio
 
@@ -421,8 +440,9 @@ Start the server in LM Studio (*Developer → Start Server*, or `lms server star
 Update LM Studio to a recent version.
 
 **It is slow.**
-Laya takes 30 to 60 seconds to load at the start of each session; after that it is fast. LM Studio
-takes a few seconds per question per row: use fewer questions, a smaller file, or Laya.
+Laya takes 30 to 60 seconds to load at the start of each session; after that it handles about one
+row per second. LM Studio takes about 8 seconds per question per row (a 1,000-row file with 3
+questions takes over 6 hours): use fewer questions, a smaller file, or Laya.
 
 **Many rows are marked `needs_review`.**
 Improve the option descriptions (section 5), check accuracy with `expected_` columns (section 7),

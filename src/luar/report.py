@@ -44,7 +44,9 @@ def render_summary(result: Result) -> str:
         if q.type in EXPERIMENTAL_TYPES:
             lines += [
                 "> **Experimental:** `score` was the least reliable question type in our tests "
-                "(about 70-80% agreement with hand labels, on both engines). Check these results by hand.",
+                "(on 300 real product reviews, Laya matched the exact star rating 26% of the time, "
+                "60% within one star). Check these results by hand. Low confidence on a `score` "
+                "question does not mark the row for review.",
                 "",
             ]
         values = [v for v in df[q.id] if pd.notna(v)]

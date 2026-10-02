@@ -1,0 +1,51 @@
+[
+  {
+    "dataset": "ag_news",
+    "engine": "lmstudio (qwen3.5-4b)",
+    "rows": 300,
+    "seconds_total": 2409.0,
+    "seconds_per_row": 8.03,
+    "needs_review_share": 0.053,
+    "questions": {
+      "topic": {
+        "type": "choice",
+        "rows": 300,
+        "accuracy": 0.893,
+        "confusion": {
+          "business": {
+            "business": 63,
+            "scitech": 6,
+            "sports": 0,
+            "world": 7
+          },
+          "scitech": {
+            "business": 8,
+            "scitech": 68,
+            "sports": 0,
+            "world": 3
+          },
+          "sports": {
+            "business": 0,
+            "scitech": 0,
+            "sports": 74,
+            "world": 2
+          },
+          "world": {
+            "business": 4,
+            "scitech": 1,
+            "sports": 1,
+            "world": 63
+          }
+        },
+        "calibration": {
+          "ece": 0.078,
+          "mean_confidence": 0.959,
+          "accuracy_conf_ge_0.7": 0.933,
+          "share_conf_ge_0.7": 0.95,
+          "accuracy_conf_lt_0.7": 0.133
+        }
+      }
+    },
+    "note": "B2W run stopped by the user (machine load); LM Studio evaluated on AG News only."
+  }
+]

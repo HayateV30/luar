@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from .backends.base import Answer, Backend, Progress
-from .questions import Question, validate_questions
+from .questions import EXPERIMENTAL_TYPES, Question, validate_questions
 from .tables import TableInfo, output_paths, read_table, write_table
 
 DEFAULT_THRESHOLD = 0.7
@@ -94,7 +94,8 @@ def classify(
     progress: Progress | None = None,
 ) -> Result:
     """Return a copy of `df` with, per question, `<id>` and `<id>_confidence`,
-    plus `needs_review` / `review_reasons` for rows below the confidence threshold."""
+    plus `needs_review` / `review_reasons` for rows below the confidence threshold
+    (experimental `score` answers only count when they are missing)."""
     validate_questions(questions)
     _check_columns(df, questions)
     if not 0 <= threshold <= 1:
@@ -124,10 +125,13 @@ def classify(
         if a is None:
             why = ["empty text"]
         else:
+            # Experimental (score) answers are rarely confident, so their confidence would mark
+            # almost every row (97% on real reviews). They still count when there is no answer.
             why = [
                 q.id for q in questions
                 if a.get(q.id) is None or a[q.id].value is None
-                or a[q.id].confidence is None or a[q.id].confidence < threshold
+                or (q.type not in EXPERIMENTAL_TYPES
+                    and (a[q.id].confidence is None or a[q.id].confidence < threshold))
             ]
         review.append("yes" if why else "")
         reasons.append(", ".join(why))

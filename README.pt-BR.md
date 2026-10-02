@@ -75,11 +75,11 @@ A LUAR tem dois motores, o "cérebro" que lê os textos. Você pode instalar um 
 
 | Motor | O que é | Velocidade (notebook sem placa de vídeo) | Download |
 |---|---|---|---|
-| **Laya** | Um modelo de decisão aberto, feito para este tipo de pergunta: responde com probabilidades em vez de escrever texto. | Rápido: cerca de 0,6 s por linha | ~1,5 GB no primeiro uso (bibliotecas + modelo) |
-| **LM Studio** | Qualquer modelo de chat rodando no app gratuito [LM Studio](https://lmstudio.ai) (testado com Qwen 3.5 4B). | Mais lento: cerca de 5 s por linha *para cada pergunta* | A LUAR em si tem ~200 MB; o modelo é baixado no LM Studio (Qwen 3.5 4B: 3,4 GB) |
+| **Laya** | Um modelo de decisão aberto, feito para este tipo de pergunta: responde com probabilidades em vez de escrever texto. | Rápido: cerca de 1 s por linha | ~1,5 GB no primeiro uso (bibliotecas + modelo) |
+| **LM Studio** | Qualquer modelo de chat rodando no app gratuito [LM Studio](https://lmstudio.ai) (testado com Qwen 3.5 4B). | Lento: cerca de 8 s por linha *para cada pergunta* | A LUAR em si tem ~200 MB; o modelo é baixado no LM Studio (Qwen 3.5 4B: 3,4 GB) |
 
-Na dúvida, **comece pela Laya**: não precisa de outro programa e é bem mais rápida. A seção 8
-explica quando o LM Studio vale a pena.
+Na dúvida, **use a Laya**: não precisa de outro programa, é pelo menos 8 vezes mais rápida e, nos
+nossos testes com dados reais, acertou tanto ou mais (seção 8).
 
 ---
 
@@ -198,9 +198,11 @@ A qualidade das respostas depende principalmente de como as perguntas são escri
 | `noul` | a resposta é **sim ou não** | `yes` ou `no` | *O cliente pede o dinheiro de volta?* |
 | `score` ⚠️ | a resposta é **um nível numa escala** | um dos seus níveis, do mais baixo ao mais alto | *Qual a gravidade do problema?* nenhuma / leve / grave |
 
-> ⚠️ **`score` é experimental.** Foi o tipo menos confiável nos testes: 71% (Laya) e 79%
-> (LM Studio) de concordância com respostas dadas à mão. Prefira `choice` ou `noul` quando puder e
-> confira os resultados de `score` você mesmo.
+> ⚠️ **`score` é experimental.** Foi o tipo menos confiável nos testes: em 300 avaliações reais de
+> produtos, a Laya acertou a nota que o próprio cliente deu (1 a 5 estrelas) só 26% das vezes, embora
+> 60% das respostas tenham errado por no máximo uma estrela. Prefira `choice` ou `noul` quando puder
+> e confira os resultados de `score` você mesmo. Como a confiança dele quase sempre é baixa, uma
+> pergunta `score` não marca linhas para revisão.
 
 ### Dicas
 
@@ -217,6 +219,10 @@ A qualidade das respostas depende principalmente de como as perguntas são escri
    opção, troque a ordem e compare (a seção 7 mostra como medir).
 7. **Escreva no idioma dos seus dados.** Perguntas e opções podem estar em qualquer idioma que o
    motor entenda.
+8. **Cuidado com opções "do meio", como `neutro`.** Em avaliações reais, a Laya acertou positivo e
+   negativo em 82–87% dos casos, mas quase nunca escolheu `neutro` (3 de 60). Se você precisa de uma
+   opção do meio, descreva-a bem e meça com colunas `expected_` (seção 7); duas perguntas de sim/não
+   ("É positiva?", "É negativa?") são uma alternativa que vale testar.
 
 ### Formato do arquivo de perguntas
 
@@ -264,7 +270,7 @@ E duas colunas para a linha inteira:
 
 | Coluna | Significado |
 |---|---|
-| `needs_review` | `yes` se alguma resposta da linha ficou abaixo do limite de confiança. Filtre por ela para achar as linhas que uma pessoa deve conferir. |
+| `needs_review` | `yes` se alguma resposta da linha ficou abaixo do limite de confiança (exceto perguntas `score`, veja a seção 5). Filtre por ela para achar as linhas que uma pessoa deve conferir. |
 | `review_reasons` | Quais perguntas ficaram em dúvida (por exemplo `assunto, quer_reembolso`), ou `empty text` se a linha não tinha texto. |
 
 Linhas sem texto não são enviadas ao motor; elas ficam marcadas em `needs_review` com o motivo `empty text`.
@@ -284,8 +290,10 @@ O arquivo `_summary.md` traz:
 ### Quanto confiar na confiança
 
 A confiança é uma probabilidade de verdade calculada pelo motor, não um número inventado pelo modelo.
-Ela é um bom **guia** de onde os erros são mais prováveis, mas o modelo ainda pode errar com
-convicção. Por isso a próxima seção é importante.
+Ela é um bom **guia** de onde os erros são mais prováveis, mas o quanto ajuda depende dos seus dados.
+Nos nossos testes, com confiança de 0,7 ou mais a Laya acertou 98% dos temas de notícias, mas só
+72–75% nas avaliações de clientes. O modelo pode errar com convicção, por isso a próxima seção é
+importante.
 
 ---
 
@@ -309,16 +317,29 @@ As colunas `expected_` nunca são mostradas ao modelo, então não "entregam" as
 
 ## 8. Escolhendo o motor: Laya ou LM Studio
 
+Medimos os dois motores em 300 textos de dois conjuntos de dados públicos classificados por pessoas,
+num notebook sem placa de vídeo dedicada ([detalhes e script](https://github.com/HayateV30/luar/tree/main/bench)):
+
 | | Laya | LM Studio (Qwen 3.5 4B) |
 |---|---|---|
-| Acerto nos nossos exemplos `choice`/`noul` | 86–100% | 100% |
-| Acerto no nosso exemplo `score` | 71% | 79% |
-| Tempo por linha, 3 perguntas (notebook sem placa de vídeo) | ~0,6 s | ~14 s |
+| **Tema de notícias** (inglês, AG News, 4 temas) | **93%** | 89% |
+| **Recomendaria?** (avaliações em português, B2W) | 70% | não medido* |
+| **Sentimento** positivo / neutro / negativo (B2W) | 68% (neutro: 5%) | não medido* |
+| **Nota de 1 a 5 estrelas** (`score`, B2W) | 26% (60% com até uma estrela de diferença) | não medido* |
+| Acerto quando a confiança ≥ 0,7 | 98% notícias · 72–75% avaliações | 93% notícias |
+| Tempo por linha | ~1 s (1 pergunta) a ~1,3 s (3 perguntas) | ~8 s por pergunta |
 | Precisa de outro programa | Não | Sim, o LM Studio |
-| Melhor para | arquivos grandes, passadas rápidas | arquivos menores, quando a precisão importa mais |
 
-Uma boa rotina: **teste os dois na sua amostra com colunas `expected_`** (seção 7) e fique com o que
-acertar o suficiente numa velocidade aceitável para você.
+<sub>*Interrompido: a ~8 s por pergunta, 300 avaliações × 3 perguntas levariam cerca de 2 horas na
+máquina de teste. O gabarito das avaliações vem da nota que o próprio cliente deu, que nem sempre
+bate com o texto; é um teste difícil e com ruído.</sub>
+
+**A Laya é o melhor padrão**: mais rápida, sem programa extra e pelo menos tão precisa onde deu para
+comparar. Nos nossos exemplos curtos, escritos à mão, o LM Studio acertou mais (100%), mas essa
+vantagem não se manteve nas notícias reais. O LM Studio vale a tentativa quando a Laya vai mal na
+sua amostra (por exemplo, com perguntas ou idiomas incomuns) e o arquivo é pequeno. Em qualquer
+caso, **meça na sua amostra com colunas `expected_`** (seção 7) antes de confiar num arquivo
+grande.
 
 ### Configurando o LM Studio
 
@@ -420,9 +441,10 @@ Ligue o servidor no LM Studio (*Developer → Start Server*, ou `lms server star
 Atualize o LM Studio para uma versão recente.
 
 **Está lento.**
-A Laya leva de 30 a 60 segundos para carregar no início de cada sessão; depois disso é rápida. O
-LM Studio leva alguns segundos por pergunta em cada linha: use menos perguntas, um arquivo menor ou
-a Laya.
+A Laya leva de 30 a 60 segundos para carregar no início de cada sessão; depois disso processa cerca
+de uma linha por segundo. O LM Studio leva cerca de 8 segundos por pergunta em cada linha (um arquivo
+de 1.000 linhas com 3 perguntas leva mais de 6 horas): use menos perguntas, um arquivo menor ou a
+Laya.
 
 **Muitas linhas ficam marcadas em `needs_review`.**
 Melhore as descrições das opções (seção 5), meça o acerto com colunas `expected_` (seção 7), ou

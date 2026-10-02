@@ -56,13 +56,14 @@ def test_accuracy_against_expected_columns(backend):
 def test_summary_mentions_distribution_review_and_experimental(backend):
     qs = parse_questions([
         {"id": "level", "type": "score", "question": "How bad?", "options": ["low", "high"]},
+        {"id": "color", "type": "choice", "question": "Which color?", "options": ["red", "blue"]},
     ])
-    df = pd.DataFrame({"t": ["high", "meh | pipe\nnewline"]})
+    df = pd.DataFrame({"t": ["high red", "meh | pipe\nnewline"]})
     md = render_summary(classify(df, ["t"], qs, backend))
     assert "## level (score)" in md and "Experimental" in md
     assert "| high | 1 | 50% |" in md
-    # spreadsheet row 3 = second data row; pipes and newlines made table-safe
-    assert "| 3 | level | meh \\| pipe newline |" in md
+    # spreadsheet row 3 = second data row; only the choice question marks it; text made table-safe
+    assert "| 3 | color | meh \\| pipe newline |" in md
 
 
 def test_run_file_examples_end_to_end(tmp_path, backend):
@@ -82,3 +83,14 @@ def test_cli_columns_and_errors(capsys, tmp_path):
     bad.write_text('[{"id": "x", "type": "choice", "question": "?", "options": ["a"]}]', encoding="utf-8")
     assert cli_main(["run", str(EXAMPLES / "reviews.csv"), "-q", str(bad), "-c", "review"]) == 2
     assert "at least 2" in capsys.readouterr().err
+
+
+def test_low_confidence_score_does_not_mark_rows(backend):
+    qs = parse_questions([
+        {"id": "color", "type": "choice", "question": "Which color?", "options": ["red", "blue"]},
+        {"id": "level", "type": "score", "question": "How bad?", "options": ["low", "high"]},
+    ])
+    # "red" is matched (0.9) for color; level matches nothing (0.3) but must not mark the row
+    res = classify(pd.DataFrame({"t": ["red"]}), ["t"], qs, backend, threshold=0.7)
+    assert res.table.loc[0, "level_confidence"] == 0.3
+    assert res.table.loc[0, "needs_review"] == "" and res.table.loc[0, "review_reasons"] == ""
