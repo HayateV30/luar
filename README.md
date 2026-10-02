@@ -3,6 +3,10 @@
 Drop a spreadsheet, say what you want to know about each row, and get back a copy with the answers
 plus a Markdown summary. Everything runs **on your own computer**: no cloud, no data sent anywhere.
 
+**Who it's for:** anyone with a spreadsheet of text (reviews, survey answers, messages, notes) who
+wants it labeled without writing code, SQL or Docker files. One `pip install`, one file, your own
+questions.
+
 LUAR has two local engines:
 
 | Engine | What it is | Speed* | When to use |
@@ -146,6 +150,17 @@ A model can be confidently wrong, so measure it on your own data before using th
 - **Option order can change answers.** Put the most specific options first and test with `expected_*`.
 - **Keep to about 20 options per question.** Split larger lists into two questions.
 - **Confidence is a hint, not a guarantee.** Use `needs_review` to decide where a human should look.
+
+## Related projects
+
+Other open tools around Laya, in case one fits you better:
+
+- [laya-studio](https://github.com/felix-homelab/laya-studio): a full web platform (Docker + PostgreSQL)
+  with batch evaluation, calibration monitoring, a review queue and automations. Pick it if you
+  are building a decision system for a team; pick LUAR if you just want a labeled spreadsheet.
+- [vgi-laya](https://github.com/lmangani/vgi-laya): Laya as SQL functions inside DuckDB. Pick it if
+  your data already lives in a database and you are comfortable with SQL.
+- More in the [laya.tools](https://laya.tools) directory.
 
 ## Architecture
 

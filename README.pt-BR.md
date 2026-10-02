@@ -3,6 +3,10 @@
 Arraste uma planilha, diga o que quer saber sobre cada linha e receba uma cópia com as respostas
 e um resumo em Markdown. Tudo roda **no seu computador**: sem nuvem, sem enviar dados a ninguém.
 
+**Para quem é:** para quem tem uma planilha com texto (avaliações, respostas de pesquisa, mensagens,
+anotações) e quer classificá-la sem escrever código, SQL ou arquivos Docker. Um `pip install`, um
+arquivo, as suas perguntas.
+
 O LUAR tem dois motores locais:
 
 | Motor | O que é | Velocidade* | Quando usar |
@@ -103,6 +107,17 @@ As colunas `expected_*` nunca são oferecidas como entrada para o modelo.
 - **A ordem das opções pode mudar as respostas:** teste com `expected_*`.
 - **Até cerca de 20 opções por pergunta:** divida listas maiores em duas perguntas.
 - **Confiança é pista, não garantia:** use `needs_review` para decidir onde uma pessoa deve olhar.
+
+## Projetos relacionados
+
+Outras ferramentas abertas em torno da Laya, caso alguma sirva melhor para você:
+
+- [laya-studio](https://github.com/felix-homelab/laya-studio): plataforma web completa (Docker +
+  PostgreSQL) com avaliação em lote, monitor de calibração, fila de revisão e automações. Boa para
+  montar um sistema de decisão para uma equipe; a LUAR é para quem só quer a planilha classificada.
+- [vgi-laya](https://github.com/lmangani/vgi-laya): a Laya como funções SQL dentro do DuckDB. Boa se
+  os seus dados já estão num banco e você usa SQL.
+- Mais no diretório [laya.tools](https://laya.tools).
 
 ## Licença
 
