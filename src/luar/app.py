@@ -9,6 +9,7 @@ import gradio as gr
 import pandas as pd
 
 from .backends.laya_backend import LayaBackend, pick_checkpoint
+from .backends.lmstudio_backend import LMStudioBackend, LMStudioError
 from .engine import DEFAULT_THRESHOLD, EXPECTED_PREFIX, REVIEW_COL, classify, save_result
 from .questions import EXPERIMENTAL_TYPES, QuestionError, dump_questions, load_questions, parse_questions
 from .report import render_summary
@@ -27,7 +28,7 @@ and get a copy with the answers plus a summary. Everything runs on this computer
 
 QUESTION_HELP = """
 **Question types:** `choice` picks one option · `noul` answers yes/no · `score` places the row on an
-ordered scale (*experimental*: unreliable without fine-tuning).
+ordered scale (*experimental*: the least reliable type in our tests).
 **Options:** separate with `;` and optionally add a description after `:`, e.g.
 `delivery: shipping, delays; product: defects, quality`. Up to 20 options; `noul` takes none.
 Add a column named `expected_<id>` to your file to measure accuracy on rows you already know.
@@ -95,11 +96,15 @@ def on_save_questions(table):
     return path
 
 
+EXAMPLE_SETS = {
+    "English reviews": ("reviews.csv", "reviews_questions.json"),
+    "English reviews: severity (score)": ("reviews.csv", "reviews_severity_question.json"),
+    "Avaliações em português": ("avaliacoes.csv", "avaliacoes_perguntas.json"),
+}
+
+
 def on_example(name):
-    data, questions = {
-        "English reviews": ("reviews.csv", "reviews_questions.json"),
-        "Avaliações em português": ("avaliacoes.csv", "avaliacoes_perguntas.json"),
-    }[name]
+    data, questions = EXAMPLE_SETS[name]
     rows = _questions_to_rows(load_questions(EXAMPLES / questions))
     return str(EXAMPLES / data), rows
 
@@ -113,7 +118,23 @@ def _backend(checkpoint: str, texts: list[str], questions) -> LayaBackend:
     return backend
 
 
-def on_run(file, columns, table, threshold, checkpoint, progress=gr.Progress()):
+def on_engine(engine):
+    is_laya = engine == "Laya"
+    return gr.update(visible=is_laya), gr.update(visible=not is_laya), gr.update(visible=not is_laya)
+
+
+def on_refresh_models():
+    """List the LLMs LM Studio can serve (loaded or downloaded)."""
+    try:
+        models = LMStudioBackend().list_models()
+    except LMStudioError as e:
+        raise gr.Error(str(e)) from e
+    if not models:
+        raise gr.Error("LM Studio has no model available; load one (e.g. `lms load qwen3.5-4b`).")
+    return gr.update(choices=models, value=models[0])
+
+
+def on_run(file, columns, table, threshold, engine, checkpoint, lms_model, progress=gr.Progress()):
     if not file:
         raise gr.Error("Drop a CSV or XLSX file first.")
     if not columns:
@@ -127,14 +148,18 @@ def on_run(file, columns, table, threshold, checkpoint, progress=gr.Progress()):
 
     df, info = read_table(file)
     texts = df[columns].astype(str).agg(" ".join, axis=1).tolist()
-    progress(0, desc="Loading the model (the first run downloads it)…")
-    backend = _backend(checkpoint, texts, questions)
+    if engine == "Laya":
+        progress(0, desc="Loading the model (the first run downloads it)…")
+        backend = _backend(checkpoint, texts, questions)
+    else:
+        progress(0, desc="Asking LM Studio…")
+        backend = LMStudioBackend(model=lms_model or None)
     try:
         result = classify(
             df, columns, questions, backend, threshold,
             progress=lambda done, total: progress(done / total, desc=f"{done}/{total} rows"),
         )
-    except ValueError as e:
+    except (ValueError, LMStudioError) as e:
         raise gr.Error(str(e)) from e
     # uploads live in a temp folder; write the outputs to a fresh one
     save_result(result, info, out_dir=tempfile.mkdtemp(prefix="luar_"))
@@ -154,7 +179,7 @@ def build() -> gr.Blocks:
                 status = gr.Markdown()
                 columns = gr.CheckboxGroup(label="Column(s) the model should read", choices=[])
                 example = gr.Dropdown(
-                    ["English reviews", "Avaliações em português"], label="…or try an example", value=None,
+                    list(EXAMPLE_SETS), label="…or try an example", value=None,
                     visible=EXAMPLES.exists(),  # examples ship with the repo, not the wheel
                 )
             with gr.Column(scale=2):
@@ -184,10 +209,19 @@ def build() -> gr.Blocks:
                 0.5, 0.95, value=DEFAULT_THRESHOLD, step=0.05, label="Confidence threshold",
                 info="Answers below it mark the row as needs_review",
             )
+            engine = gr.Radio(
+                ["Laya", "LM Studio"], value="Laya", label="Engine",
+                info="Laya: fast, built for decisions · LM Studio: a local LLM, slower, often more accurate",
+            )
             checkpoint = gr.Dropdown(
-                ["auto", "multilingual", "english"], value="auto", label="Model variant",
+                ["auto", "multilingual", "english"], value="auto", label="Laya model variant",
                 info="auto: English files use the English model, others the multilingual one",
             )
+            lms_model = gr.Dropdown(
+                [], label="LM Studio model", visible=False, allow_custom_value=True,
+                info="Empty: the first model LM Studio has loaded",
+            )
+            lms_refresh = gr.Button("List LM Studio models", visible=False, scale=0)
         run = gr.Button("Run", variant="primary")
 
         gr.Markdown("### Result")
@@ -202,7 +236,12 @@ def build() -> gr.Blocks:
         example.change(on_example, example, [upload, questions])
         q_upload.change(on_load_questions, q_upload, questions)
         q_save.click(on_save_questions, questions, q_file)
-        run.click(on_run, [source, columns, questions, threshold, checkpoint], [result, summary, downloads])
+        engine.change(on_engine, engine, [checkpoint, lms_model, lms_refresh])
+        lms_refresh.click(on_refresh_models, None, lms_model)
+        run.click(
+            on_run, [source, columns, questions, threshold, engine, checkpoint, lms_model],
+            [result, summary, downloads],
+        )
     return demo
 
 

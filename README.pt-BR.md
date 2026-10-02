@@ -1,11 +1,16 @@
 # 🌙 LUAR: Local Utility for Automated Reviews
 
 Arraste uma planilha, diga o que quer saber sobre cada linha e receba uma cópia com as respostas
-e um resumo em Markdown. Tudo roda **no seu computador**: sem chave de API, sem enviar dados a ninguém.
+e um resumo em Markdown. Tudo roda **no seu computador**: sem nuvem, sem enviar dados a ninguém.
 
-O LUAR é uma camada simples sobre a [Laya](https://huggingface.co/convaiinnovations/laya), um modelo
-de decisão aberto e local no estilo do Jev. Em vez de gerar texto, a Laya responde perguntas
-*estruturadas* sobre um texto, com uma confiança para cada resposta.
+O LUAR tem dois motores locais:
+
+| Motor | O que é | Velocidade* | Quando usar |
+|---|---|---|---|
+| **Laya** (padrão) | a [Laya](https://huggingface.co/convaiinnovations/laya), modelo de decisão aberto no estilo do Jev: responde perguntas *estruturadas* com uma probabilidade, em vez de gerar texto | ~0,6 s por linha | arquivos grandes, passadas rápidas |
+| **LM Studio** | qualquer modelo de chat rodando no [LM Studio](https://lmstudio.ai) (testado com Qwen 3.5 4B) | ~5 s por linha *por pergunta* | arquivos menores, quando a precisão importa mais |
+
+<sub>*Num notebook sem placa de vídeo dedicada. Nos dois motores, a confiança é uma probabilidade de verdade.</sub>
 
 *[Read in English](README.md)*
 
@@ -29,8 +34,9 @@ automaticamente, e a cópia mantém o mesmo separador.
 | `noul` | `yes` ou `no` | *O cliente pede o dinheiro de volta?* |
 | `score` ⚠️ | um nível numa escala ordenada | *Qual a gravidade?* baixa / média / alta |
 
-> ⚠️ **`score` é experimental.** Nos nossos testes ele não foi confiável sem fine-tuning: as respostas
-> pendiam para uma ponta da escala. Prefira `choice` ou `noul`, ou confira os resultados de `score` à mão.
+> ⚠️ **`score` é experimental.** Foi o tipo menos confiável nos testes: 71% (Laya) e 79% (LM Studio)
+> de concordância com a classificação manual no exemplo de gravidade. Prefira `choice` ou `noul`,
+> ou confira os resultados de `score` à mão.
 
 ## Instalação
 
@@ -45,7 +51,8 @@ pip install -e ".[ui]"
 ## Como usar
 
 **Interface web:** `luar ui` abre `http://127.0.0.1:7860` (só local). Arraste o arquivo, marque a(s)
-coluna(s), preencha as perguntas (ou carregue um `.json`, ou escolha um exemplo) e clique em **Run**.
+coluna(s), preencha as perguntas (ou carregue um `.json`, ou escolha um exemplo), escolha o motor e
+clique em **Run**.
 
 **Linha de comando:**
 
@@ -53,7 +60,23 @@ coluna(s), preencha as perguntas (ou carregue um `.json`, ou escolha um exemplo)
 luar run examples/avaliacoes.csv -q examples/avaliacoes_perguntas.json -c avaliacao
 ```
 
-O formato do arquivo de perguntas e as opções da linha de comando estão no [README em inglês](README.md).
+Para usar o LM Studio, acrescente `--engine lmstudio`. O formato do arquivo de perguntas e as opções
+da linha de comando estão no [README em inglês](README.md).
+
+### Usando o LM Studio
+
+1. Instale o [LM Studio](https://lmstudio.ai) e baixe um modelo de chat (ex.: `qwen3.5-4b`).
+2. Ligue o servidor e carregue o modelo, no app (*Developer → Start Server*) ou pela linha de comando:
+   ```bash
+   lms server start
+   lms load qwen3.5-4b
+   ```
+3. Rode com `--engine lmstudio` (ou escolha **LM Studio** na interface web).
+
+O endereço padrão é `http://localhost:1234/v1` (mude com `LUAR_LMSTUDIO_URL`). Se você ativou
+*Require API key* no LM Studio, coloque a chave na variável de ambiente `LMSTUDIO_API_KEY`, nunca num
+arquivo versionado. O LUAR desliga o "raciocínio" do modelo (`reasoning_effort: none`): cada resposta
+é um único token.
 
 ## Confira antes de confiar
 
@@ -66,7 +89,9 @@ As colunas `expected_*` nunca são oferecidas como entrada para o modelo.
 
 ## Dicas dos testes
 
-- **Idioma:** o modo `auto` usa o modelo `english` para arquivos em inglês e o `multilingual` para os demais.
+- **Acerto nos exemplos:** a Laya fez 86–100% em `choice`/`noul`; o LM Studio com Qwen 3.5 4B fez
+  100% em todos, mas levou mais de 20 vezes mais tempo (3 perguntas: ~14 s contra ~0,6 s por linha).
+- **Idioma (Laya):** o modo `auto` usa o modelo `english` para arquivos em inglês e o `multilingual` para os demais.
 - **Descreva as opções:** `"preco": "valor, custo-benefício, cobranças"` funciona melhor que só `"preco"`.
 - **A ordem das opções pode mudar as respostas:** teste com `expected_*`.
 - **Até cerca de 20 opções por pergunta:** divida listas maiores em duas perguntas.

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "severity",
+    "type": "score",
+    "question": "How serious is the problem the customer reports?",
+    "options": {
+      "none": "no problem reported, or the customer is satisfied",
+      "minor": "an annoyance, but the item or order is still usable",
+      "major": "the item is unusable, money was lost or the order did not arrive"
+    }
+  }
+]

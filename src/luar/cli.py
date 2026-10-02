@@ -21,17 +21,21 @@ def _cmd_columns(args) -> int:
 
 
 def _cmd_run(args) -> int:
-    from .backends import LayaBackend
+    from .backends import make_backend
     from .engine import run_file
     from .questions import load_questions
 
     questions = load_questions(args.questions)
-    backend = LayaBackend(checkpoint=args.checkpoint, device=args.device)
+    if args.engine == "laya":
+        backend = make_backend("laya", checkpoint=args.checkpoint, device=args.device)
+    else:
+        backend = make_backend("lmstudio", model=args.model, base_url=args.lmstudio_url)
 
     def progress(done, total):
         print(f"\r  {done}/{total} rows", end="", file=sys.stderr, flush=True)
 
-    print(f"Loading {backend.name} (the first run downloads the model)…", file=sys.stderr)
+    print(f"Engine: {backend.name}" + (" (the first run downloads the model)" if args.engine == "laya" else ""),
+          file=sys.stderr)
     result = run_file(
         args.file, questions, args.columns, backend,
         threshold=args.threshold, out_dir=args.out_dir, sheet=args.sheet, progress=progress,
@@ -66,9 +70,13 @@ def main(argv: list[str] | None = None) -> int:
                    help=f"confidence below this marks the row for review (default {DEFAULT_THRESHOLD})")
     p.add_argument("-o", "--out-dir", help="output folder (default: next to the file)")
     p.add_argument("--sheet", help="Excel sheet name (default: first)")
+    p.add_argument("-e", "--engine", default="laya", choices=["laya", "lmstudio"],
+                   help="decision engine (default: laya)")
     p.add_argument("--checkpoint", default="auto", choices=["auto", "multilingual", "english", "typed-decisions"],
-                   help="model variant (default: auto, by the file's language)")
-    p.add_argument("--device", help="cpu or cuda (default: automatic)")
+                   help="laya: model variant (default: auto, by the file's language)")
+    p.add_argument("--device", help="laya: cpu or cuda (default: automatic)")
+    p.add_argument("--model", help="lmstudio: model id (default: the first loaded model)")
+    p.add_argument("--lmstudio-url", help="lmstudio: server URL (default: $LUAR_LMSTUDIO_URL or http://localhost:1234/v1)")
     p.set_defaults(func=_cmd_run)
 
     p = sub.add_parser("columns", help="list a file's columns with a sample value")
@@ -82,9 +90,11 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=_cmd_ui)
 
     args = ap.parse_args(argv)
+    from .backends.lmstudio_backend import LMStudioError
+
     try:
         return args.func(args)
-    except (ValueError, FileNotFoundError, FileExistsError) as e:
+    except (ValueError, FileNotFoundError, FileExistsError, LMStudioError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
 

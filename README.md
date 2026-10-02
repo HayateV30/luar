@@ -1,11 +1,16 @@
 # 🌙 LUAR: Local Utility for Automated Reviews
 
 Drop a spreadsheet, say what you want to know about each row, and get back a copy with the answers
-plus a Markdown summary. Everything runs **on your own computer**: no API keys, no data sent anywhere.
+plus a Markdown summary. Everything runs **on your own computer**: no cloud, no data sent anywhere.
 
-LUAR is a thin, friendly layer over [Laya](https://huggingface.co/convaiinnovations/laya), an open,
-local decision model in the style of Jev. Instead of generating text, Laya answers *structured*
-questions about a piece of text, with a confidence for each answer.
+LUAR has two local engines:
+
+| Engine | What it is | Speed* | When to use |
+|---|---|---|---|
+| **Laya** (default) | [Laya](https://huggingface.co/convaiinnovations/laya), an open decision model in the style of Jev: it answers *structured* questions with a probability, instead of generating text | ~0.6 s per row | large files, quick passes |
+| **LM Studio** | any chat model you run in [LM Studio](https://lmstudio.ai) (tested with Qwen 3.5 4B) | ~5 s per row *per question* | smaller files, when accuracy matters most |
+
+<sub>*On a laptop CPU without a dedicated GPU. Both engines give a real probability as confidence.</sub>
 
 *[Leia em português](README.pt-BR.md)*
 
@@ -26,8 +31,9 @@ questions about a piece of text, with a confidence for each answer.
 | `noul` | `yes` or `no` | *Does the customer ask for their money back?* |
 | `score` ⚠️ | a level on an ordered scale | *How severe is it?* low / medium / high |
 
-> ⚠️ **`score` is experimental.** In our tests it was unreliable without fine-tuning: answers drifted to
-> one end of the scale. Prefer `choice` or `noul`, or check `score` results by hand.
+> ⚠️ **`score` is experimental.** It was the least reliable type in our tests: 71% (Laya) and 79%
+> (LM Studio) agreement with hand labels on the bundled severity example. Prefer `choice` or `noul`,
+> or check `score` results by hand.
 
 ## Install
 
@@ -51,7 +57,7 @@ This opens `http://127.0.0.1:7860` in your browser (local only). Then:
 
 1. Drop your file and tick the column(s) the model should read.
 2. Fill in the questions table (or load a questions `.json`, or pick a bundled example).
-3. Click **Run** and download the result copy and the summary.
+3. Pick the engine (Laya or LM Studio), click **Run** and download the result copy and the summary.
 
 ### Command line
 
@@ -60,16 +66,33 @@ luar columns examples/reviews.csv
 luar run examples/reviews.csv -q examples/reviews_questions.json -c review
 ```
 
-Options: `-t/--threshold` (default `0.7`), `-o/--out-dir`, `--sheet` (Excel), `--checkpoint`
-(`auto`, `multilingual`, `english`), `--device` (`cpu`/`cuda`).
+Options: `-t/--threshold` (default `0.7`), `-o/--out-dir`, `--sheet` (Excel), `-e/--engine`
+(`laya` or `lmstudio`). Laya: `--checkpoint` (`auto`, `multilingual`, `english`), `--device`
+(`cpu`/`cuda`). LM Studio: `--model`, `--lmstudio-url`.
+
+### Using LM Studio
+
+1. Install [LM Studio](https://lmstudio.ai) and download a chat model (e.g. `qwen3.5-4b`).
+2. Start the server and load the model, in the app (*Developer → Start Server*) or with its CLI:
+   ```bash
+   lms server start
+   lms load qwen3.5-4b
+   ```
+3. Run with `--engine lmstudio` (or choose **LM Studio** in the web interface).
+
+The server URL defaults to `http://localhost:1234/v1` (change it with `LUAR_LMSTUDIO_URL`). If you turned
+on *Require API key* in LM Studio, put the key in the `LMSTUDIO_API_KEY` environment variable, never in
+a file you commit. LUAR turns the model's "thinking" off (`reasoning_effort: none`): each answer is a
+single token.
 
 ### Python
 
 ```python
 from luar import load_questions, run_file
-from luar.backends import LayaBackend
+from luar.backends import make_backend
 
-result = run_file("data.csv", load_questions("questions.json"), ["text"], LayaBackend())
+backend = make_backend("laya")          # or make_backend("lmstudio", model="qwen3.5-4b")
+result = run_file("data.csv", load_questions("questions.json"), ["text"], backend)
 print(result.table_path, result.summary_path)
 ```
 
@@ -108,7 +131,9 @@ A model can be confidently wrong, so measure it on your own data before using th
 
 ## Tips from testing
 
-- **Language:** `auto` picks the `english` model when the file is in English and `multilingual`
+- **Accuracy on the bundled examples:** Laya got 86–100% on `choice`/`noul`; LM Studio with
+  Qwen 3.5 4B got 100% on all of them, but took over 20x longer (3 questions: ~14 s vs ~0.6 s per row).
+- **Language (Laya):** `auto` picks the `english` model when the file is in English and `multilingual`
   otherwise. On English text, the English model was clearly better; on Portuguese, the multilingual one.
 - **Describe options.** `"price": "cost, value for money, charges"` beats a bare `"price"`.
 - **Option order can change answers.** Put the most specific options first and test with `expected_*`.
@@ -123,19 +148,24 @@ src/luar/
   tables.py      CSV/XLSX reading (separator & encoding sniffing) and never-overwrite writing
   engine.py      runs the questions over rows, confidence threshold, accuracy
   report.py      Markdown summary
-  backends/      the "socket" for decision engines; Laya is the first one
+  backends/      the "socket" for decision engines: Laya and LM Studio
   cli.py, app.py command line and Gradio interface
 ```
 
-A new engine (for example a local LLM through an OpenAI-compatible endpoint) only needs to implement
+A new engine only needs to implement
 `Backend.decide(texts, questions) -> [{question_id: Answer(value, confidence)}]`.
+
+**How the LM Studio engine gets a confidence:** each option is shown with a letter (A, B, C…), the model
+answers with one token, and LUAR reads the probability the model gave each letter (`logprobs`),
+renormalized over the valid letters. That is the model's actual probability, not a number it writes
+about itself.
 
 ## Development
 
 ```bash
 pip install -e ".[ui,dev]"
 pytest              # fast tests, no model needed
-pytest -m slow -s   # runs the real Laya model on the examples
+pytest -m slow -s   # runs the real models on the examples (LM Studio tests skip if the server is off)
 ```
 
 ## License

@@ -43,8 +43,8 @@ def render_summary(result: Result) -> str:
         lines += ["", f"## {q.id} ({q.type})", "", f"> {q.question}", ""]
         if q.type in EXPERIMENTAL_TYPES:
             lines += [
-                "> **Experimental:** in our tests `score` questions were unreliable without "
-                "fine-tuning (answers drifted to one end of the scale). Check these results by hand.",
+                "> **Experimental:** `score` was the least reliable question type in our tests "
+                "(about 70-80% agreement with hand labels, on both engines). Check these results by hand.",
                 "",
             ]
         values = [v for v in df[q.id] if pd.notna(v)]

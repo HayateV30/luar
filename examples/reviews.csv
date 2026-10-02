@@ -1,15 +1,15 @@
-id,review,expected_topic,expected_sentiment,expected_wants_refund
-1,"The package arrived two weeks late and the box was crushed.",delivery,negative,no
-2,"Great headphones, the sound is crisp and the battery lasts all day.",product,positive,no
-3,"The blender stopped working after three days. I want my money back.",product,negative,yes
-4,"I called support three times and nobody solved my problem.",support,negative,no
-5,"Way too expensive for what it is. Cheaper stores sell the same thing.",price,negative,no
-6,"Fast shipping, it arrived the next morning. Very happy!",delivery,positive,no
-7,"The agent on the chat was kind and fixed my order in minutes.",support,positive,no
-8,"I was charged twice for the same order, please refund the extra charge.",price,negative,yes
-9,"The shirt fabric is thin and it shrank after the first wash.",product,negative,no
-10,"Good value for money, I would buy it again at this price.",price,positive,no
-11,"The courier left the parcel at the wrong address.",delivery,negative,no
-12,"It works as described. Nothing special, nothing wrong.",product,neutral,no
-13,"Received the wrong color and the store refuses to take it back. I want a refund.",support,negative,yes
-14,"Support answered my email the same day, thanks.",support,positive,no
+id,review,expected_topic,expected_sentiment,expected_wants_refund,expected_severity
+1,The package arrived two weeks late and the box was crushed.,delivery,negative,no,major
+2,"Great headphones, the sound is crisp and the battery lasts all day.",product,positive,no,none
+3,The blender stopped working after three days. I want my money back.,product,negative,yes,major
+4,I called support three times and nobody solved my problem.,support,negative,no,major
+5,Way too expensive for what it is. Cheaper stores sell the same thing.,price,negative,no,minor
+6,"Fast shipping, it arrived the next morning. Very happy!",delivery,positive,no,none
+7,The agent on the chat was kind and fixed my order in minutes.,support,positive,no,none
+8,"I was charged twice for the same order, please refund the extra charge.",price,negative,yes,major
+9,The shirt fabric is thin and it shrank after the first wash.,product,negative,no,minor
+10,"Good value for money, I would buy it again at this price.",price,positive,no,none
+11,The courier left the parcel at the wrong address.,delivery,negative,no,major
+12,"It works as described. Nothing special, nothing wrong.",product,neutral,no,none
+13,Received the wrong color and the store refuses to take it back. I want a refund.,support,negative,yes,major
+14,"Support answered my email the same day, thanks.",support,positive,no,none
