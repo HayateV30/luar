@@ -1,113 +1,222 @@
 # 🌙 LUAR: Local Utility for Automated Reviews
 
-Drop a spreadsheet, say what you want to know about each row, and get back a copy with the answers
-plus a Markdown summary. Everything runs **on your own computer**: no cloud, no data sent anywhere.
+**Label a spreadsheet of text with your own questions, on your own computer.**
 
-**Who it's for:** anyone with a spreadsheet of text (reviews, survey answers, messages, notes) who
-wants it labeled without writing code, SQL or Docker files. One `pip install`, one file, your own
-questions.
-
-LUAR has two local engines:
-
-| Engine | What it is | Speed* | When to use |
-|---|---|---|---|
-| **Laya** (default) | [Laya](https://huggingface.co/convaiinnovations/laya), an open decision model in the style of Jev: it answers *structured* questions with a probability, instead of generating text | ~0.6 s per row | large files, quick passes |
-| **LM Studio** | any chat model you run in [LM Studio](https://lmstudio.ai) (tested with Qwen 3.5 4B) | ~5 s per row *per question* | smaller files, when accuracy matters most |
-
-<sub>*On a laptop CPU without a dedicated GPU. Both engines give a real probability as confidence.</sub>
+You drop a spreadsheet, write what you want to know about each row ("What is this review about?",
+"Does the customer ask for a refund?"), and LUAR gives you back a copy of the spreadsheet with the
+answers filled in, plus a short report. No cloud, no account, no API costs: your data never leaves
+your machine.
 
 *[Leia em português](https://github.com/HayateV30/luar/blob/main/README.pt-BR.md)*
 
-## What it does
+---
 
-| You give it | You get back |
+## Contents
+
+1. [What LUAR does](#1-what-luar-does)
+2. [Before you start](#2-before-you-start)
+3. [Installing](#3-installing)
+4. [Your first run, step by step](#4-your-first-run-step-by-step)
+5. [Writing good questions](#5-writing-good-questions)
+6. [Understanding the results](#6-understanding-the-results)
+7. [Checking whether you can trust the answers](#7-checking-whether-you-can-trust-the-answers)
+8. [Choosing an engine: Laya or LM Studio](#8-choosing-an-engine-laya-or-lm-studio)
+9. [Using the command line](#9-using-the-command-line)
+10. [Troubleshooting and FAQ](#10-troubleshooting-and-faq)
+11. [Related projects, contributing and license](#11-related-projects-contributing-and-license)
+
+---
+
+## 1. What LUAR does
+
+Imagine a spreadsheet of customer reviews:
+
+| id | review |
 |---|---|
-| A `.csv` or `.xlsx` file | `<name>_luar.csv/.xlsx`: a **copy** with new columns (your original is never touched) |
-| The column(s) to read | For each question: `<id>` (the answer) and `<id>_confidence` (0–1) |
-| Your questions | `needs_review` = `yes` when any answer is below the confidence threshold, and `review_reasons` |
-| | `<name>_luar_summary.md`: counts per answer, rows to review, accuracy (see below) |
+| 1 | The package arrived two weeks late and the box was crushed. |
+| 2 | The blender stopped working after three days. I want my money back. |
 
-### Question types
+You ask two questions: *"What is this review mainly about?"* (delivery, product, support or price)
+and *"Does the customer ask for their money back?"* (yes or no). LUAR returns a **copy** of the file
+with new columns:
 
-| Type | Answers | Example |
-|---|---|---|
-| `choice` | one of your options (2–20) | *What is this review about?* delivery / product / support / price |
-| `noul` | `yes` or `no` | *Does the customer ask for their money back?* |
-| `score` ⚠️ | a level on an ordered scale | *How severe is it?* low / medium / high |
+| id | review | topic | topic_confidence | wants_refund | wants_refund_confidence | needs_review |
+|---|---|---|---|---|---|---|
+| 1 | The package arrived two weeks late… | delivery | 0.62 | no | 0.71 | yes |
+| 2 | The blender stopped working… | product | 0.48 | yes | 0.88 | yes |
 
-> ⚠️ **`score` is experimental.** It was the least reliable type in our tests: 71% (Laya) and 79%
-> (LM Studio) agreement with hand labels on the bundled severity example. Prefer `choice` or `noul`,
-> or check `score` results by hand.
+<sub>Real output of the Laya engine on the bundled example. All four answers are right, but the model was
+unsure about the topic (below the 0.7 threshold), so both rows are marked for a quick human check.</sub>
 
-## Install
+- Each answer comes with a **confidence** from 0 to 1.
+- Rows where the model was unsure are marked **`needs_review`**, so you know where a person should look.
+- A **summary report** counts the answers and lists the rows to review.
+- Your original file is **never changed**.
 
-Requires Python 3.10+. The first run downloads the Laya model (a few hundred MB) from Hugging Face.
+It is useful for survey answers, product reviews, support messages, feedback forms, notes: any
+column of text you would otherwise read and tag by hand.
+
+---
+
+## 2. Before you start
+
+You need:
+
+- **Python 3.10 or newer.** Check by opening a terminal (on Windows: *PowerShell* or *Command
+  Prompt*) and typing `python --version`. If it is missing, install it from
+  [python.org](https://www.python.org/downloads/) and tick *"Add python.exe to PATH"* during setup.
+- **A spreadsheet** in `.xlsx` or `.csv` format, with the text in one or more columns.
+- **Disk space and a first-time download**, depending on the engine (see below). After the first
+  run, everything works offline.
+
+LUAR has two engines, the "brains" that read your text. You can install one or both:
+
+| Engine | What it is | Speed (laptop, no GPU) | Download |
+|---|---|---|---|
+| **Laya** | An open decision model built for this kind of question: it answers with probabilities instead of writing text. | Fast: about 0.6 s per row | ~1.5 GB the first time (libraries + model) |
+| **LM Studio** | Any chat model you run in the free [LM Studio](https://lmstudio.ai) app (tested with Qwen 3.5 4B). | Slower: about 5 s per row *for each question* | LUAR itself is ~200 MB; the model is downloaded in LM Studio (Qwen 3.5 4B: 3.4 GB) |
+
+Not sure? **Start with Laya**: it needs no other app and is much faster. Section 8 explains when
+LM Studio is worth it.
+
+---
+
+## 3. Installing
+
+Open a terminal and run **one** of these commands:
+
+```bash
+pip install "luar[all]"
+```
+Everything: web interface + Laya engine. **Recommended.**
 
 ```bash
 pip install "luar[ui]"
 ```
+Web interface only, for people who will use LM Studio as the engine (smaller download).
 
-Leave out `[ui]` if you only need the command line. To get the bundled examples (and the example
-picker in the web interface), install from the repository instead:
+To add Laya later, run `pip install "luar[laya]"`.
 
-```bash
-git clone https://github.com/HayateV30/luar.git
-cd luar
-pip install -e ".[ui]"
-```
+> **On Linux**, install the CPU version of PyTorch first, or pip will download a multi-GB GPU build:
+> `pip install torch --index-url https://download.pytorch.org/whl/cpu`
 
-## Use it
+---
 
-### Web interface
+## 4. Your first run, step by step
+
+### Step 1: open LUAR
 
 ```bash
 luar ui
 ```
 
-This opens `http://127.0.0.1:7860` in your browser (local only). Then:
+Your browser opens on `http://127.0.0.1:7860`. This page is served by your own computer and is
+not reachable from the internet. Keep the terminal open while you use LUAR; close it (or press
+`Ctrl+C`) to stop.
 
-1. Drop your file and tick the column(s) the model should read.
-2. Fill in the questions table (or load a questions `.json`, or pick a bundled example).
-3. Pick the engine (Laya or LM Studio), click **Run** and download the result copy and the summary.
+> If `luar` is not recognized, or Windows blocks it, use `python -m luar ui` instead.
 
-### Command line
+### Step 2: load your spreadsheet
 
-```bash
-luar columns examples/reviews.csv
-luar run examples/reviews.csv -q examples/reviews_questions.json -c review
-```
+Drag your file onto the **CSV or XLSX** box (or click it to choose the file).
 
-Options: `-t/--threshold` (default `0.7`), `-o/--out-dir`, `--sheet` (Excel), `-e/--engine`
-(`laya` or `lmstudio`). Laya: `--checkpoint` (`auto`, `multilingual`, `english`), `--device`
-(`cpu`/`cuda`). LM Studio: `--model`, `--lmstudio-url`.
+![Loading a spreadsheet](https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/1-spreadsheet.png)
 
-### Using LM Studio
+- LUAR shows how many rows and columns it found and a **preview** of the first rows.
+- CSV files exported by Excel in other languages (with `;` as separator, or accented characters)
+  are detected automatically.
+- For Excel files, the **first sheet** is used.
+- Under **Column(s) the model should read**, tick the column with the text. LUAR pre-selects the
+  column with the longest text. If you tick several (for example *title* and *body*), they are read
+  together.
 
-1. Install [LM Studio](https://lmstudio.ai) and download a chat model (e.g. `qwen3.5-4b`).
-2. Start the server and load the model, in the app (*Developer → Start Server*) or with its CLI:
-   ```bash
-   lms server start
-   lms load qwen3.5-4b
-   ```
-3. Run with `--engine lmstudio` (or choose **LM Studio** in the web interface).
+**Just want to try it?** If you installed from the repository (see [section 11](#11-related-projects-contributing-and-license)),
+pick a bundled example in **…or try an example**. Otherwise, download
+[reviews.csv](https://raw.githubusercontent.com/HayateV30/luar/main/examples/reviews.csv) and
+[reviews_questions.json](https://raw.githubusercontent.com/HayateV30/luar/main/examples/reviews_questions.json)
+and load them as described in steps 2 and 3.
 
-The server URL defaults to `http://localhost:1234/v1` (change it with `LUAR_LMSTUDIO_URL`). If you turned
-on *Require API key* in LM Studio, put the key in the `LMSTUDIO_API_KEY` environment variable, never in
-a file you commit. LUAR turns the model's "thinking" off (`reasoning_effort: none`): each answer is a
-single token.
+### Step 3: write your questions
 
-### Python
+Each row of the questions table is one question:
 
-```python
-from luar import load_questions, run_file
-from luar.backends import make_backend
+![The questions table](https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/2-questions.png)
 
-backend = make_backend("laya")          # or make_backend("lmstudio", model="qwen3.5-4b")
-result = run_file("data.csv", load_questions("questions.json"), ["text"], backend)
-print(result.table_path, result.summary_path)
-```
+| Column | What to write | Example |
+|---|---|---|
+| **id** | A short name for the question. It becomes the name of the new column. Letters, numbers and `_` only, no spaces. | `topic` |
+| **type** | `choice`, `noul` or `score` (see [section 5](#5-writing-good-questions)). | `choice` |
+| **question** | The question, in plain language. | `What is this review mainly about?` |
+| **options** | The possible answers, separated by `;`. Optionally add a short description after `:`. Leave empty for `noul`. | `delivery: shipping, delays; product: defects, quality; price` |
 
-## Questions file
+Click a cell to edit it, and use the table's row controls to add or remove rows.
+
+**Tip:** questions can be saved and reused. **Save questions as .json** downloads the table;
+**Load questions (.json)** brings it back. Writing the questions once in a `.json` file is often
+the easiest way to manage many of them (format in [section 5](#questions-file-format)).
+
+### Step 4: choose the settings and run
+
+![Run settings](https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/3-run.png)
+
+- **Confidence threshold** (default `0.7`): any answer below this is marked `needs_review`. Raise
+  it to review more rows, lower it to review fewer.
+- **Engine**: Laya or LM Studio (see [section 8](#8-choosing-an-engine-laya-or-lm-studio)).
+- **Laya model variant**: leave it on `auto`. It picks the English model for English files and the
+  multilingual model for everything else.
+
+Click **Run**. The first time, Laya downloads its model, which takes a few minutes; later runs
+start in seconds.
+
+### Step 5: download the results
+
+![Results](https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/4-result.png)
+
+Under **Result** you get two files to download:
+
+- **`<your file>_luar.csv` or `.xlsx`**: your spreadsheet with the new columns.
+- **`<your file>_luar_summary.md`**: the report (it is also shown on the page, in **Summary**).
+  `.md` is plain text, so it opens in any text editor.
+
+The **Table** tab shows the result spreadsheet right on the page.
+
+---
+
+## 5. Writing good questions
+
+The quality of the answers depends mostly on how the questions are written.
+
+### The three question types
+
+| Type | Use it when… | Answer | Example |
+|---|---|---|---|
+| `choice` | the answer is **one of a list** (2 to 20 options) | one of your options | *What is the review about?* delivery / product / support / price |
+| `noul` | the answer is **yes or no** | `yes` or `no` | *Does the customer ask for their money back?* |
+| `score` ⚠️ | the answer is a **level on a scale** | one of your levels, in order from lowest to highest | *How serious is the problem?* none / minor / major |
+
+> ⚠️ **`score` is experimental.** It was the least reliable type in our tests: 71% (Laya) and 79%
+> (LM Studio) agreement with answers given by hand. Prefer `choice` or `noul` when you can, and
+> check `score` results yourself.
+
+### Tips
+
+1. **Describe the options.** `price: cost, value for money, charges` works much better than just
+   `price`. The description tells the model what belongs in each option.
+2. **Make the options cover everything and not overlap.** If some rows may fit none of them, add an
+   `other` option. If two options mean almost the same thing, merge them.
+3. **Ask one thing per question.** Instead of *"Is the customer angry and asking for a refund?"*,
+   make two `noul` questions.
+4. **Be specific.** *"Does the customer **explicitly** ask for their money back?"* gets better
+   answers than *"Refund?"*.
+5. **Keep to about 20 options.** For longer lists, split into a broad question and a detailed one.
+6. **Option order can change some answers.** If results look biased towards one option, try
+   reordering and compare (section 7 shows how to measure).
+7. **Write in the language of your data.** Questions and options can be in any language the engine
+   supports.
+
+### Questions file format
+
+A questions file is a list in JSON format. This is the file behind the example above:
 
 ```json
 [
@@ -117,80 +226,238 @@ print(result.table_path, result.summary_path)
     "question": "What is this review mainly about?",
     "options": {
       "delivery": "shipping, delays, courier, package condition",
-      "product": "quality, defects, how the item works"
+      "product": "quality, defects, how the item works",
+      "support": "customer service, returns, how the store handled a request",
+      "price": "cost, value for money, charges and billing"
     }
   },
-  {"id": "sentiment", "type": "choice", "question": "Overall sentiment?", "options": ["positive", "neutral", "negative"]},
-  {"id": "wants_refund", "type": "noul", "question": "Does the customer explicitly ask for their money back?"}
+  {
+    "id": "sentiment",
+    "type": "choice",
+    "question": "What is the overall sentiment of the review?",
+    "options": ["positive", "neutral", "negative"]
+  },
+  {
+    "id": "wants_refund",
+    "type": "noul",
+    "question": "Does the customer explicitly ask for their money back?"
+  }
 ]
 ```
 
-- `id`: letters, digits and `_`; becomes the column name.
-- `options`: a list of labels, or `{label: description}`. Descriptions help the model a lot.
-- Laya's native format (`{"id": {"type", "instructions", "criteria"}}`) is accepted too.
+`options` can be a simple list (`["positive", "neutral", "negative"]`) or a list with
+descriptions (`{"delivery": "shipping, delays", …}`). For `score`, list the levels from lowest to
+highest.
 
-## Check before you trust it
+---
 
-A model can be confidently wrong, so measure it on your own data before using the results:
+## 6. Understanding the results
 
-1. Label 20–50 rows by hand in columns named **`expected_<id>`** (e.g. `expected_topic`).
-   For `noul`, `yes/no`, `sim/não`, `true/false` and `1/0` all work.
-2. Run LUAR. The summary shows **accuracy against `expected_<id>`** for each question.
-3. Adjust the questions (wording, option descriptions) or the threshold until you are happy.
+### New columns in your spreadsheet
 
-`expected_*` columns are never offered to the model as input.
+For each question (here, a question with id `topic`):
 
-## Tips from testing
+| Column | Meaning |
+|---|---|
+| `topic` | The answer: one of your options, or `yes`/`no` for `noul` questions. |
+| `topic_confidence` | How sure the engine is, from 0 to 1. `0.95` = very sure; `0.40` = guessing between options. |
 
-- **Accuracy on the bundled examples:** Laya got 86–100% on `choice`/`noul`; LM Studio with
-  Qwen 3.5 4B got 100% on all of them, but took over 20x longer (3 questions: ~14 s vs ~0.6 s per row).
-- **Language (Laya):** `auto` picks the `english` model when the file is in English and `multilingual`
-  otherwise. On English text, the English model was clearly better; on Portuguese, the multilingual one.
-- **Describe options.** `"price": "cost, value for money, charges"` beats a bare `"price"`.
-- **Option order can change answers.** Put the most specific options first and test with `expected_*`.
-- **Keep to about 20 options per question.** Split larger lists into two questions.
-- **Confidence is a hint, not a guarantee.** Use `needs_review` to decide where a human should look.
+And two columns for the whole row:
 
-## Related projects
+| Column | Meaning |
+|---|---|
+| `needs_review` | `yes` if any answer in the row is below the confidence threshold. Filter by it to find the rows a person should check. |
+| `review_reasons` | Which questions were uncertain (for example `topic, sentiment`), or `empty text` if the row had no text. |
 
-Other open tools around Laya, in case one fits you better:
+Rows with no text are not sent to the engine; they are marked `needs_review` with the reason `empty text`.
 
-- [laya-studio](https://github.com/felix-homelab/laya-studio): a full web platform (Docker + PostgreSQL)
-  with batch evaluation, calibration monitoring, a review queue and automations. Pick it if you
-  are building a decision system for a team; pick LUAR if you just want a labeled spreadsheet.
+### The summary report
+
+The `_summary.md` file contains:
+
+- **The run:** date, engine, number of rows, columns read, threshold, time taken.
+- **One section per question:** how many rows got each answer (count and %), the average
+  confidence, and how many answers fell below the threshold.
+- **Accuracy**, if your file has answer-key columns (next section).
+- **Rows to review:** row number (as in Excel, counting the header as row 1), which questions were
+  uncertain, and the start of the text. Up to 50 rows are listed; filter `needs_review` in the
+  result file for the rest.
+
+### How much to trust the confidence
+
+The confidence is a real probability computed by the engine, not a number the model makes up. It is
+a good **guide** to where mistakes are likely, but a model can still be confidently wrong. That is
+why the next section matters.
+
+---
+
+## 7. Checking whether you can trust the answers
+
+Before relying on LUAR for a large file, measure it on a sample whose answers you already know:
+
+1. **Pick 20 to 50 rows** and answer the questions yourself.
+2. **Add one column per question** named `expected_` + the question id. For the question `topic`,
+   the column is `expected_topic`. Fill in your answers.
+   - For `noul` questions, `yes`/`no`, `sim`/`não`, `true`/`false` and `1`/`0` all work.
+   - Rows left blank in the `expected_` column are simply not counted.
+3. **Run LUAR** on that file. The summary now shows, for each question, a line like
+   **Accuracy against `expected_topic`: 12/14 (86%)**.
+4. If the accuracy is too low, **improve the questions** (section 5), try the **other engine**, and
+   run again until you are satisfied. Then run your full file.
+
+The `expected_` columns are never shown to the model, so they cannot leak the answers.
+
+---
+
+## 8. Choosing an engine: Laya or LM Studio
+
+| | Laya | LM Studio (Qwen 3.5 4B) |
+|---|---|---|
+| Accuracy on our `choice`/`noul` examples | 86–100% | 100% |
+| Accuracy on our `score` example | 71% | 79% |
+| Time per row, 3 questions (laptop, no GPU) | ~0.6 s | ~14 s |
+| Needs another app | No | Yes, LM Studio |
+| Best for | large files, quick passes | smaller files, when accuracy matters most |
+
+A good routine: **test both on your sample with `expected_` columns** (section 7) and keep the one
+that is accurate enough at a speed you can live with.
+
+### Setting up LM Studio
+
+1. Install [LM Studio](https://lmstudio.ai) and download a chat model in it (for example
+   `qwen3.5-4b`). Larger models are usually more accurate but slower.
+2. Load the model and start the local server, either in the app (*Developer* tab → *Start
+   Server*) or in a terminal:
+   ```bash
+   lms server start
+   lms load qwen3.5-4b
+   ```
+3. In LUAR, choose **LM Studio** as the engine. Click **List LM Studio models** to pick a model, or
+   leave it empty to use the one already loaded.
+
+Good to know:
+
+- LUAR connects to `http://localhost:1234/v1`. If your LM Studio server uses another address,
+  set the environment variable `LUAR_LMSTUDIO_URL`.
+- If you turned on **Require API key** in LM Studio, put the key in an environment variable named
+  `LMSTUDIO_API_KEY` (never in a file you share).
+- LUAR turns the model's "thinking" off and asks for a one-letter answer, so each question is quick
+  and the confidence comes from the model's own probabilities.
+- LUAR reads the model's token probabilities, so keep LM Studio up to date (tested with the
+  October 2026 release).
+
+---
+
+## 9. Using the command line
+
+Everything in the web interface can also be done in a terminal, which is handy for repeating the
+same job or automating it.
+
+```bash
+luar columns my_file.xlsx
+```
+Lists the columns of a file with a sample value from each.
+
+```bash
+luar run my_file.xlsx -q questions.json -c review
+```
+Labels the file. The result and the summary are saved **next to the original file**, as
+`my_file_luar.xlsx` and `my_file_luar_summary.md`. If those names already exist, LUAR adds `_2`,
+`_3`… instead of overwriting.
+
+| Option | What it does |
+|---|---|
+| `-q`, `--questions` | The questions file (`.json`). Required. |
+| `-c`, `--columns` | The column(s) to read. Several are allowed: `-c title body`. Required. |
+| `-t`, `--threshold` | Confidence threshold, from 0 to 1 (default `0.7`). |
+| `-o`, `--out-dir` | Save the results in another folder. |
+| `--sheet` | Excel sheet to read (default: the first). |
+| `-e`, `--engine` | `laya` or `lmstudio` (default: Laya if installed, otherwise LM Studio). |
+| `--checkpoint` | Laya: `auto` (default), `multilingual` or `english`. |
+| `--device` | Laya: `cpu` or `cuda` (default: automatic). |
+| `--model` | LM Studio: model id (default: the loaded model). |
+| `--lmstudio-url` | LM Studio: server address. |
+
+Use LUAR from Python:
+
+```python
+from luar import load_questions, run_file
+from luar.backends import make_backend
+
+backend = make_backend("laya")   # or make_backend("lmstudio")
+result = run_file("data.csv", load_questions("questions.json"), ["text"], backend)
+print(result.table_path, result.summary_path)
+```
+
+---
+
+## 10. Troubleshooting and FAQ
+
+**Does my data leave my computer?**
+No. Both engines run locally. The only downloads are the software and the models, the first time.
+
+**`luar` is not recognized, or Windows says access is denied.**
+Use `python -m luar ui` (or `python -m luar run …`). Some Windows security settings block small
+program files that pip creates; going through `python` avoids that.
+
+**"Old .xls files are not supported".**
+Open the file in Excel and save it as `.xlsx` (or `.csv`).
+
+**Accents look wrong in the result.**
+The result CSV is saved in UTF-8, which Excel reads correctly when you double-click the file. If you
+import it manually (*Data → From Text/CSV*), choose *UTF-8*.
+
+**"The file already has column(s) …".**
+You are probably running LUAR on a file that is already a LUAR result. Use the original file, or
+change the question ids.
+
+**"The Laya engine is not installed".**
+Run `pip install "luar[laya]"`, or switch the engine to LM Studio.
+
+**"Could not reach LM Studio".**
+Start the server in LM Studio (*Developer → Start Server*, or `lms server start`) and load a model.
+
+**"LM Studio did not return token probabilities".**
+Update LM Studio to a recent version.
+
+**It is slow.**
+Laya takes 30 to 60 seconds to load at the start of each session; after that it is fast. LM Studio
+takes a few seconds per question per row: use fewer questions, a smaller file, or Laya.
+
+**Many rows are marked `needs_review`.**
+Improve the option descriptions (section 5), check accuracy with `expected_` columns (section 7),
+or lower the threshold if accuracy is already good.
+
+**Which languages work?**
+Laya's multilingual model handles many languages (it was tested here in Portuguese and English).
+LM Studio depends on the model you choose.
+
+---
+
+## 11. Related projects, contributing and license
+
+**Related projects.** Other open tools around Laya, in case one fits you better:
+
+- [laya-studio](https://github.com/felix-homelab/laya-studio): a full web platform (Docker +
+  PostgreSQL) with batch evaluation, calibration monitoring, a review queue and automations. Pick
+  it if you are building a decision system for a team; pick LUAR if you just want a labeled
+  spreadsheet.
 - [vgi-laya](https://github.com/lmangani/vgi-laya): Laya as SQL functions inside DuckDB. Pick it if
   your data already lives in a database and you are comfortable with SQL.
 - More in the [laya.tools](https://laya.tools) directory.
 
-## Architecture
-
-```
-src/luar/
-  questions.py   question model + validation (choice / score / noul)
-  tables.py      CSV/XLSX reading (separator & encoding sniffing) and never-overwrite writing
-  engine.py      runs the questions over rows, confidence threshold, accuracy
-  report.py      Markdown summary
-  backends/      the "socket" for decision engines: Laya and LM Studio
-  cli.py, app.py command line and Gradio interface
-```
-
-A new engine only needs to implement
-`Backend.decide(texts, questions) -> [{question_id: Answer(value, confidence)}]`.
-
-**How the LM Studio engine gets a confidence:** each option is shown with a letter (A, B, C…), the model
-answers with one token, and LUAR reads the probability the model gave each letter (`logprobs`),
-renormalized over the valid letters. That is the model's actual probability, not a number it writes
-about itself.
-
-## Development
+**Installing from the repository** (includes the examples and the example picker):
 
 ```bash
-pip install -e ".[ui,dev]"
-pytest              # fast tests, no model needed
-pytest -m slow -s   # runs the real models on the examples (LM Studio tests skip if the server is off)
+git clone https://github.com/HayateV30/luar.git
+cd luar
+pip install -e ".[all]"
 ```
 
-## License
+**Contributing.** How LUAR works inside, how to run the tests and how to add an engine:
+[CONTRIBUTING.md](https://github.com/HayateV30/luar/blob/main/CONTRIBUTING.md). Bugs and ideas:
+[issues](https://github.com/HayateV30/luar/issues).
 
-MIT for LUAR's code. Laya (the package and the model weights) is a separate project with its own
-license; check its [model card](https://huggingface.co/convaiinnovations/laya) before redistributing it.
+**License.** MIT for LUAR's code. Laya (the package and the model weights) is a separate project
+with its own license; check its [model card](https://huggingface.co/convaiinnovations/laya) before
+redistributing it.

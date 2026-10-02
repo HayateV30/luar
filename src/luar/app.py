@@ -8,7 +8,8 @@ from pathlib import Path
 import gradio as gr
 import pandas as pd
 
-from .backends.laya_backend import LayaBackend, pick_checkpoint
+from .backends.base import BackendError
+from .backends.laya_backend import INSTALL_HINT, LayaBackend, laya_installed, pick_checkpoint
 from .backends.lmstudio_backend import LMStudioBackend, LMStudioError
 from .engine import DEFAULT_THRESHOLD, EXPECTED_PREFIX, REVIEW_COL, classify, save_result
 from .questions import EXPERIMENTAL_TYPES, QuestionError, dump_questions, load_questions, parse_questions
@@ -150,7 +151,10 @@ def on_run(file, columns, table, threshold, engine, checkpoint, lms_model, progr
     texts = df[columns].astype(str).agg(" ".join, axis=1).tolist()
     if engine == "Laya":
         progress(0, desc="Loading the model (the first run downloads it)…")
-        backend = _backend(checkpoint, texts, questions)
+        try:
+            backend = _backend(checkpoint, texts, questions)
+        except BackendError as e:
+            raise gr.Error(str(e)) from e
     else:
         progress(0, desc="Asking LM Studio…")
         backend = LMStudioBackend(model=lms_model or None)
@@ -159,7 +163,7 @@ def on_run(file, columns, table, threshold, engine, checkpoint, lms_model, progr
             df, columns, questions, backend, threshold,
             progress=lambda done, total: progress(done / total, desc=f"{done}/{total} rows"),
         )
-    except (ValueError, LMStudioError) as e:
+    except (ValueError, BackendError) as e:
         raise gr.Error(str(e)) from e
     # uploads live in a temp folder; write the outputs to a fresh one
     save_result(result, info, out_dir=tempfile.mkdtemp(prefix="luar_"))
@@ -209,19 +213,22 @@ def build() -> gr.Blocks:
                 0.5, 0.95, value=DEFAULT_THRESHOLD, step=0.05, label="Confidence threshold",
                 info="Answers below it mark the row as needs_review",
             )
+            has_laya = laya_installed()
             engine = gr.Radio(
-                ["Laya", "LM Studio"], value="Laya", label="Engine",
-                info="Laya: fast, built for decisions · LM Studio: a local LLM, slower, often more accurate",
+                ["Laya", "LM Studio"], value="Laya" if has_laya else "LM Studio", label="Engine",
+                info="Laya: fast, built for decisions · LM Studio: a local LLM, slower, often more accurate"
+                + ("" if has_laya else f" · Laya is not installed ({INSTALL_HINT})"),
             )
             checkpoint = gr.Dropdown(
                 ["auto", "multilingual", "english"], value="auto", label="Laya model variant",
                 info="auto: English files use the English model, others the multilingual one",
+                visible=has_laya,
             )
             lms_model = gr.Dropdown(
-                [], label="LM Studio model", visible=False, allow_custom_value=True,
+                [], label="LM Studio model", visible=not has_laya, allow_custom_value=True,
                 info="Empty: the first model LM Studio has loaded",
             )
-            lms_refresh = gr.Button("List LM Studio models", visible=False, scale=0)
+            lms_refresh = gr.Button("List LM Studio models", visible=not has_laya, scale=0)
         run = gr.Button("Run", variant="primary")
 
         gr.Markdown("### Result")

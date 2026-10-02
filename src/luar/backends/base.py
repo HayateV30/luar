@@ -16,6 +16,10 @@ class Answer:
 Progress = Callable[[int, int], None]
 
 
+class BackendError(RuntimeError):
+    """An engine cannot be used (not installed, server not running…). The message says how to fix it."""
+
+
 class Backend(Protocol):
     name: str
 

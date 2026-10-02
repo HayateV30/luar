@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 
 from ..questions import Question
-from .base import Answer, Progress
+from .base import Answer, BackendError, Progress
 
 DEFAULT_URL = "http://localhost:1234/v1"
 URL_ENV = "LUAR_LMSTUDIO_URL"
@@ -27,7 +27,7 @@ SYSTEM_PROMPT = (
 )
 
 
-class LMStudioError(RuntimeError):
+class LMStudioError(BackendError):
     """The LM Studio server could not be used (not running, no model, auth…)."""
 
 

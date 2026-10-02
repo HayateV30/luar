@@ -1,8 +1,12 @@
 """Laya backend: local Jev-style decision model (https://huggingface.co/convaiinnovations/laya)."""
 from __future__ import annotations
 
+import importlib.util
+
 from ..questions import Question
-from .base import Answer, Progress
+from .base import Answer, BackendError, Progress
+
+INSTALL_HINT = 'pip install "luar[laya]"'
 
 CHECKPOINTS = {
     "auto": None,                    # picks english or multilingual from the file's language
@@ -14,9 +18,29 @@ ENGLISH_SHARE = 0.8
 LANGUAGE_SAMPLE = 200
 
 
+class LayaNotInstalledError(BackendError):
+    pass
+
+
+def laya_installed() -> bool:
+    return importlib.util.find_spec("laya") is not None
+
+
+def import_laya():
+    """Import the optional `laya` package, or explain how to install it."""
+    try:
+        import laya  # heavy import (torch); only when actually needed
+    except ImportError as e:
+        raise LayaNotInstalledError(
+            f"The Laya engine is not installed. Install it with: {INSTALL_HINT} "
+            "(about 1.5 GB with the model), or use the LM Studio engine."
+        ) from e
+    return laya
+
+
 def pick_checkpoint(texts: list[str], questions: list[Question]) -> str:
     """"english" when the questions and at least 80% of the (sampled) rows are English."""
-    import laya
+    laya = import_laya()
 
     sample = texts[:LANGUAGE_SAMPLE] + [q.question for q in questions]
     decided = [d for d in map(laya.detect_language, sample) if not d["language_undecided"]]
@@ -66,7 +90,7 @@ class LayaBackend:
             self.checkpoint = pick_checkpoint(texts, questions)
             self.name = f"laya ({self.checkpoint}, chosen automatically)"
         if self._agent is None:
-            import laya  # heavy import (torch); only when actually needed
+            laya = import_laya()
 
             kwargs = {}
             if self.device:

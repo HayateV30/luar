@@ -57,3 +57,19 @@ def test_real_model_on_examples(tmp_path, data, questions, column):
         assert hits / total >= 0.85, f"{q.id}: {hits}/{total}"
         if q.type == "noul":  # all-"no" would still score high; make sure it finds the yeses
             assert (res.table[q.id] == "yes").any(), f"{q.id}: no row answered yes"
+
+
+def test_missing_laya_gives_install_hint(monkeypatch, capsys):
+    import luar.backends as backends
+    from luar.backends.laya_backend import LayaNotInstalledError
+    from luar.cli import main as cli_main
+
+    monkeypatch.setitem(__import__("sys").modules, "laya", None)  # makes `import laya` fail
+    monkeypatch.setattr(backends, "laya_installed", lambda: False)
+    with pytest.raises(LayaNotInstalledError, match=r'pip install "luar\[laya\]"'):
+        LayaBackend().decide(["t"], load_questions(EXAMPLES / "reviews_questions.json"))
+    assert backends.default_engine() == "lmstudio"
+
+    code = cli_main(["run", str(EXAMPLES / "reviews.csv"), "-q", str(EXAMPLES / "reviews_questions.json"),
+                     "-c", "review", "-e", "laya"])
+    assert code == 2 and "luar[laya]" in capsys.readouterr().err

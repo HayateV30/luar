@@ -25,7 +25,10 @@ def _cmd_run(args) -> int:
     from .engine import run_file
     from .questions import load_questions
 
+    from .backends import default_engine
+
     questions = load_questions(args.questions)
+    args.engine = args.engine or default_engine()
     if args.engine == "laya":
         backend = make_backend("laya", checkpoint=args.checkpoint, device=args.device)
     else:
@@ -70,8 +73,8 @@ def main(argv: list[str] | None = None) -> int:
                    help=f"confidence below this marks the row for review (default {DEFAULT_THRESHOLD})")
     p.add_argument("-o", "--out-dir", help="output folder (default: next to the file)")
     p.add_argument("--sheet", help="Excel sheet name (default: first)")
-    p.add_argument("-e", "--engine", default="laya", choices=["laya", "lmstudio"],
-                   help="decision engine (default: laya)")
+    p.add_argument("-e", "--engine", choices=["laya", "lmstudio"],
+                   help="decision engine (default: laya if installed, otherwise lmstudio)")
     p.add_argument("--checkpoint", default="auto", choices=["auto", "multilingual", "english", "typed-decisions"],
                    help="laya: model variant (default: auto, by the file's language)")
     p.add_argument("--device", help="laya: cpu or cuda (default: automatic)")
@@ -90,11 +93,11 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=_cmd_ui)
 
     args = ap.parse_args(argv)
-    from .backends.lmstudio_backend import LMStudioError
+    from .backends.base import BackendError
 
     try:
         return args.func(args)
-    except (ValueError, FileNotFoundError, FileExistsError, LMStudioError) as e:
+    except (ValueError, FileNotFoundError, FileExistsError, BackendError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
 
