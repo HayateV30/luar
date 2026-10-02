@@ -34,7 +34,7 @@ questions about a piece of text, with a confidence for each answer.
 Requires Python 3.10+. The first run downloads the Laya model (a few hundred MB) from Hugging Face.
 
 ```bash
-git clone https://github.com/<you>/luar.git
+git clone https://github.com/HayateV30/luar.git
 cd luar
 pip install -e ".[ui]"
 ```

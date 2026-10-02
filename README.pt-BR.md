@@ -37,7 +37,7 @@ automaticamente, e a cópia mantém o mesmo separador.
 Requer Python 3.10+. A primeira execução baixa o modelo da Laya (algumas centenas de MB) do Hugging Face.
 
 ```bash
-git clone https://github.com/<voce>/luar.git
+git clone https://github.com/HayateV30/luar.git
 cd luar
 pip install -e ".[ui]"
 ```
