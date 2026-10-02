@@ -1,0 +1,11 @@
+id;avaliacao;expected_assunto;expected_quer_reembolso
+1;"O pacote chegou com duas semanas de atraso e a caixa amassada.";entrega;nao
+2;"Fone excelente, som limpo e a bateria dura o dia todo.";produto;nao
+3;"O liquidificador parou de funcionar em três dias. Quero meu dinheiro de volta.";produto;sim
+4;"Liguei três vezes para o atendimento e ninguém resolveu meu problema.";atendimento;nao
+5;"Caro demais pelo que é. Outras lojas vendem o mesmo mais barato.";preco;nao
+6;"Entrega rápida, chegou na manhã seguinte. Muito satisfeito!";entrega;nao
+7;"Fui cobrado duas vezes pelo mesmo pedido, quero o estorno da cobrança extra.";preco;sim
+8;"A camiseta é fina e encolheu na primeira lavagem.";produto;nao
+9;"O entregador deixou a encomenda no endereço errado.";entrega;nao
+10;"A atendente do chat foi gentil e corrigiu meu pedido em minutos.";atendimento;nao

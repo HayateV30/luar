@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "luar"
+version = "0.1.0"
+description = "LUAR (Local Utility for Automated Reviews): catalog spreadsheet rows with a local decision model."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Alexandre Alves", email = "alexxalvess@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0",
+    "openpyxl>=3.1",
+    "laya>=0.3.21",
+]
+
+[project.optional-dependencies]
+ui = ["gradio>=5.0"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+luar = "luar.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: runs the real Laya model (downloads weights; run with -m slow)"]
+addopts = "-m 'not slow'"

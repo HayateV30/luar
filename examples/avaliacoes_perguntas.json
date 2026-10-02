@@ -1,0 +1,18 @@
+[
+  {
+    "id": "assunto",
+    "type": "choice",
+    "question": "Sobre o que é principalmente esta avaliação?",
+    "options": {
+      "entrega": "frete, atraso, transportadora, estado do pacote",
+      "produto": "qualidade, defeito, funcionamento do item",
+      "atendimento": "suporte, trocas, como a loja tratou o pedido",
+      "preco": "valor, custo-benefício, cobranças"
+    }
+  },
+  {
+    "id": "quer_reembolso",
+    "type": "noul",
+    "question": "O cliente pede explicitamente o dinheiro de volta?"
+  }
+]

@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+.gradio/
+# LUAR outputs
+*_luar*.csv
+*_luar*.xlsx
+*_luar*_summary.md

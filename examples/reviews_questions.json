@@ -1,0 +1,24 @@
+[
+  {
+    "id": "topic",
+    "type": "choice",
+    "question": "What is this review mainly about?",
+    "options": {
+      "delivery": "shipping, delays, courier, package condition",
+      "product": "quality, defects, how the item works",
+      "support": "customer service, returns, how the store handled a request",
+      "price": "cost, value for money, charges and billing"
+    }
+  },
+  {
+    "id": "sentiment",
+    "type": "choice",
+    "question": "What is the overall sentiment of the review?",
+    "options": ["positive", "neutral", "negative"]
+  },
+  {
+    "id": "wants_refund",
+    "type": "noul",
+    "question": "Does the customer explicitly ask for their money back?"
+  }
+]
