@@ -12,7 +12,7 @@ O LUAR tem dois motores locais:
 
 <sub>*Num notebook sem placa de vídeo dedicada. Nos dois motores, a confiança é uma probabilidade de verdade.</sub>
 
-*[Read in English](README.md)*
+*[Read in English](https://github.com/HayateV30/luar/blob/main/README.md)*
 
 ## O que faz
 
@@ -43,6 +43,13 @@ automaticamente, e a cópia mantém o mesmo separador.
 Requer Python 3.10+. A primeira execução baixa o modelo da Laya (algumas centenas de MB) do Hugging Face.
 
 ```bash
+pip install "luar[ui]"
+```
+
+Sem o `[ui]`, instala só a linha de comando. Para ter os exemplos (e o seletor de exemplos na
+interface web), instale a partir do repositório:
+
+```bash
 git clone https://github.com/HayateV30/luar.git
 cd luar
 pip install -e ".[ui]"
@@ -61,7 +68,7 @@ luar run examples/avaliacoes.csv -q examples/avaliacoes_perguntas.json -c avalia
 ```
 
 Para usar o LM Studio, acrescente `--engine lmstudio`. O formato do arquivo de perguntas e as opções
-da linha de comando estão no [README em inglês](README.md).
+da linha de comando estão no [README em inglês](https://github.com/HayateV30/luar/blob/main/README.md).
 
 ### Usando o LM Studio
 

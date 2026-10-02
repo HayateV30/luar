@@ -10,11 +10,28 @@ readme = "README.md"
 license = "MIT"
 authors = [{ name = "Alexandre Alves", email = "alexxalvess@gmail.com" }]
 requires-python = ">=3.10"
+keywords = ["classification", "spreadsheet", "csv", "local-ai", "laya", "lm-studio", "gradio"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Office/Business",
+]
 dependencies = [
     "pandas>=2.0",
     "openpyxl>=3.1",
     "laya>=0.3.21",
 ]
+
+[project.urls]
+Homepage = "https://github.com/HayateV30/luar"
+Documentation = "https://github.com/HayateV30/luar#readme"
+Issues = "https://github.com/HayateV30/luar/issues"
+Changelog = "https://github.com/HayateV30/luar/releases"
 
 [project.optional-dependencies]
 ui = ["gradio>=5.0"]

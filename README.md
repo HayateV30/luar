@@ -12,7 +12,7 @@ LUAR has two local engines:
 
 <sub>*On a laptop CPU without a dedicated GPU. Both engines give a real probability as confidence.</sub>
 
-*[Leia em português](README.pt-BR.md)*
+*[Leia em português](https://github.com/HayateV30/luar/blob/main/README.pt-BR.md)*
 
 ## What it does
 
@@ -38,6 +38,13 @@ LUAR has two local engines:
 ## Install
 
 Requires Python 3.10+. The first run downloads the Laya model (a few hundred MB) from Hugging Face.
+
+```bash
+pip install "luar[ui]"
+```
+
+Leave out `[ui]` if you only need the command line. To get the bundled examples (and the example
+picker in the web interface), install from the repository instead:
 
 ```bash
 git clone https://github.com/HayateV30/luar.git
