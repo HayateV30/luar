@@ -50,11 +50,13 @@ def pick_checkpoint(texts: list[str], questions: list[Question]) -> str:
     return "english" if english >= ENGLISH_SHARE else "multilingual"
 
 
-def extract_answer(raw: dict | None, qtype: str) -> Answer:
+def extract_answer(raw: dict | None, qtype: str, labels: list[str] | None = None) -> Answer:
     """Normalize one Laya answer (package 0.3.x format):
       choice -> {"choice": "x", "answer_confidence": p}
       score  -> {"legend": {"0": "low", ...}, "probabilities": {"0": p, ...}}
-      noul   -> {"noul": P(yes)}"""
+      noul   -> {"noul": P(yes)}
+    For score, `labels` maps the level index back to the option label; the legend holds the
+    text sent to the model, which includes the description when the option has one."""
     if not isinstance(raw, dict):
         return Answer(None, None)
     if qtype == "noul":
@@ -63,7 +65,7 @@ def extract_answer(raw: dict | None, qtype: str) -> Answer:
     if qtype == "score":
         probs = raw["probabilities"]
         k = max(probs, key=probs.get)
-        return Answer(raw["legend"][k], float(probs[k]))
+        return Answer(labels[int(k)] if labels else raw["legend"][k], float(probs[k]))
     conf = raw.get("answer_confidence", raw.get("confidence"))
     return Answer(raw.get("choice"), None if conf is None else float(conf))
 
@@ -114,7 +116,9 @@ class LayaBackend:
             raws = agent.predict_batch(chunk, laya_questions, batch_size=self.batch_size)
             for raw in raws:
                 answers = raw.get("answers", raw) if isinstance(raw, dict) else {}
-                results.append({q.id: extract_answer(answers.get(q.id), q.type) for q in questions})
+                results.append({
+                    q.id: extract_answer(answers.get(q.id), q.type, list(q.options)) for q in questions
+                })
             if progress:
                 progress(len(results), len(texts))
         return results
