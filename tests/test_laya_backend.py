@@ -29,6 +29,12 @@ def test_extract_answer_formats():
     assert missing.value is None and missing.confidence is None
 
 
+def test_score_answer_is_the_label_not_the_description():
+    raw = {"type": "score", "legend": {"0": "none: no problem", "1": "major: item unusable"},
+           "probabilities": {"0": 0.2, "1": 0.8}}
+    assert extract_answer(raw, "score", ["none", "major"]).value == "major"
+
+
 def test_pick_checkpoint_by_language():
     en_q = load_questions(EXAMPLES / "reviews_questions.json")
     pt_q = load_questions(EXAMPLES / "avaliacoes_perguntas.json")

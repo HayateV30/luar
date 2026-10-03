@@ -23,6 +23,12 @@ def test_luar_format_with_all_types():
     assert qs[2].to_laya() == {"type": "noul", "instructions": "Is it?"}
 
 
+def test_score_descriptions_reach_the_model():
+    qs = parse_questions([{"id": "sev", "type": "score", "question": "How bad?",
+                           "options": {"none": "no problem", "minor": "", "major": "item unusable"}}])
+    assert qs[0].to_laya()["criteria"] == ["none: no problem", "minor", "major: item unusable"]
+
+
 def test_laya_native_format_is_accepted():
     qs = parse_questions({
         "team": {"type": "choice", "instructions": "Which team?", "criteria": {"x": "desc x", "y": "desc y"}},

@@ -53,7 +53,8 @@ class Question:
         if self.type == "choice":
             q["criteria"] = {k: (v or k) for k, v in self.options.items()}
         elif self.type == "score":
-            q["criteria"] = list(self.options)
+            # levels in ascending order; the description tells the model what each level means
+            q["criteria"] = [f"{k}: {v}" if v else k for k, v in self.options.items()]
         return q
 
     def to_dict(self) -> dict:
