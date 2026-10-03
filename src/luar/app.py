@@ -10,7 +10,6 @@ import pandas as pd
 
 from .backends.base import BackendError
 from .backends.laya_backend import INSTALL_HINT, LayaBackend, laya_installed, pick_checkpoint
-from .backends.lmstudio_backend import LMStudioBackend, LMStudioError
 from .engine import DEFAULT_THRESHOLD, EXPECTED_PREFIX, REVIEW_COL, classify, save_result
 from .questions import EXPERIMENTAL_TYPES, QuestionError, dump_questions, load_questions, parse_questions
 from .report import render_summary
@@ -22,9 +21,55 @@ PREVIEW_ROWS = 8
 _backends: dict[str, LayaBackend] = {}  # loaded models, reused between runs
 
 INTRO = """
-# 🌙 LUAR
+# LUAR
 **Local Utility for Automated Reviews.** Drop a spreadsheet, say what you want to know about each row,
-and get a copy with the answers plus a summary. Everything runs on this computer.
+and get a copy with the answers plus a summary. Everything runs on this computer, with the Laya model.
+"""
+
+# Neutral slate palette: the only strong color is the dark primary button (AA contrast in both modes).
+THEME = gr.themes.Base(
+    primary_hue=gr.themes.colors.slate,
+    secondary_hue=gr.themes.colors.slate,
+    neutral_hue=gr.themes.colors.slate,
+    radius_size=gr.themes.sizes.radius_md,
+    font=["Inter", "ui-sans-serif", "system-ui", "Segoe UI", "sans-serif"],
+    font_mono=["ui-monospace", "Consolas", "monospace"],
+).set(
+    body_background_fill="*neutral_50",
+    body_background_fill_dark="*neutral_950",
+    block_background_fill="white",
+    block_background_fill_dark="*neutral_900",
+    block_border_color="*neutral_200",
+    block_border_color_dark="*neutral_800",
+    block_shadow="0 1px 2px rgb(15 23 42 / 0.06)",
+    button_primary_background_fill="*neutral_900",
+    button_primary_background_fill_hover="*neutral_700",
+    button_primary_background_fill_dark="*neutral_100",
+    button_primary_background_fill_hover_dark="*neutral_300",
+    button_primary_text_color="white",
+    button_primary_text_color_dark="*neutral_900",
+    button_primary_border_color="*neutral_900",
+    button_primary_border_color_dark="*neutral_100",
+    button_secondary_background_fill="white",
+    button_secondary_background_fill_hover="*neutral_100",
+    button_secondary_background_fill_dark="*neutral_800",
+    button_secondary_background_fill_hover_dark="*neutral_700",
+    button_secondary_border_color="*neutral_300",
+    button_secondary_border_color_dark="*neutral_700",
+    checkbox_background_color_selected="*neutral_900",
+    checkbox_background_color_selected_dark="*neutral_100",
+    checkbox_border_color_selected="*neutral_900",
+    checkbox_border_color_selected_dark="*neutral_100",
+    slider_color="*neutral_900",
+    slider_color_dark="*neutral_100",
+)
+
+CSS = """
+.gradio-container { max-width: 1200px !important; margin: 0 auto; }
+.luar-step h3 { margin-top: 8px; }
+#luar-run { min-height: 48px; font-size: 1rem; }
+button, [role="button"], label:has(input) { cursor: pointer; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 """
 
 QUESTION_HELP = """
@@ -119,23 +164,7 @@ def _backend(checkpoint: str, texts: list[str], questions) -> LayaBackend:
     return backend
 
 
-def on_engine(engine):
-    is_laya = engine == "Laya"
-    return gr.update(visible=is_laya), gr.update(visible=not is_laya), gr.update(visible=not is_laya)
-
-
-def on_refresh_models():
-    """List the LLMs LM Studio can serve (loaded or downloaded)."""
-    try:
-        models = LMStudioBackend().list_models()
-    except LMStudioError as e:
-        raise gr.Error(str(e)) from e
-    if not models:
-        raise gr.Error("LM Studio has no model available; load one (e.g. `lms load qwen3.5-4b`).")
-    return gr.update(choices=models, value=models[0])
-
-
-def on_run(file, columns, table, threshold, engine, checkpoint, lms_model, progress=gr.Progress()):
+def on_run(file, columns, table, threshold, checkpoint, progress=gr.Progress()):
     if not file:
         raise gr.Error("Drop a CSV or XLSX file first.")
     if not columns:
@@ -149,16 +178,9 @@ def on_run(file, columns, table, threshold, engine, checkpoint, lms_model, progr
 
     df, info = read_table(file)
     texts = df[columns].astype(str).agg(" ".join, axis=1).tolist()
-    if engine == "Laya":
-        progress(0, desc="Loading the model (the first run downloads it)…")
-        try:
-            backend = _backend(checkpoint, texts, questions)
-        except BackendError as e:
-            raise gr.Error(str(e)) from e
-    else:
-        progress(0, desc="Asking LM Studio…")
-        backend = LMStudioBackend(model=lms_model or None)
+    progress(0, desc="Loading the model (the first run downloads it)…")
     try:
+        backend = _backend(checkpoint, texts, questions)
         result = classify(
             df, columns, questions, backend, threshold,
             progress=lambda done, total: progress(done / total, desc=f"{done}/{total} rows"),
@@ -175,9 +197,11 @@ def on_run(file, columns, table, threshold, engine, checkpoint, lms_model, progr
 def build() -> gr.Blocks:
     with gr.Blocks(title="LUAR") as demo:
         gr.Markdown(INTRO)
+        if not laya_installed():
+            gr.Markdown(f"**The Laya model is not installed.** Install it with `{INSTALL_HINT}` and restart LUAR.")
         source = gr.State()
-        with gr.Row():
-            with gr.Column(scale=1):
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=1, elem_classes="luar-step"):
                 gr.Markdown("### 1. Spreadsheet")
                 upload = gr.File(label="CSV or XLSX", file_types=[".csv", ".xlsx", ".xlsm", ".txt"])
                 status = gr.Markdown()
@@ -186,52 +210,41 @@ def build() -> gr.Blocks:
                     list(EXAMPLE_SETS), label="…or try an example", value=None,
                     visible=EXAMPLES.exists(),  # examples ship with the repo, not the wheel
                 )
-            with gr.Column(scale=2):
+            with gr.Column(scale=2, elem_classes="luar-step"):
                 gr.Markdown("### Preview")
                 preview = gr.Dataframe(interactive=False, max_height=260, wrap=True)
 
-        gr.Markdown("### 2. What do you want to know about each row?")
-        questions = gr.Dataframe(
-            headers=QUESTION_HEADERS,
-            datatype=["str", "str", "str", "str"],
-            value=[["", "choice", "", ""]],
-            interactive=True,
-            row_count=(1, "dynamic"),
-            column_count=(4, "fixed"),
-            wrap=True,
-            column_widths=["12%", "10%", "38%", "40%"],
-        )
-        gr.Markdown(QUESTION_HELP)
+        with gr.Group(elem_classes="luar-step"):
+            gr.Markdown("### 2. What do you want to know about each row?")
+            questions = gr.Dataframe(
+                headers=QUESTION_HEADERS,
+                datatype=["str", "str", "str", "str"],
+                value=[["", "choice", "", ""]],
+                interactive=True,
+                row_count=(1, "dynamic"),
+                column_count=(4, "fixed"),
+                wrap=True,
+                column_widths=["12%", "10%", "38%", "40%"],
+            )
+            gr.Markdown(QUESTION_HELP)
         with gr.Row():
             q_upload = gr.File(label="Load questions (.json)", file_types=[".json"], scale=1)
-            q_save = gr.Button("Save questions as .json", scale=0)
+            q_save = gr.Button("Save questions as .json", variant="secondary", scale=0)
             q_file = gr.File(label="Questions file", interactive=False, scale=1)
 
-        gr.Markdown("### 3. Run")
+        gr.Markdown("### 3. Run", elem_classes="luar-step")
         with gr.Row():
             threshold = gr.Slider(
                 0.5, 0.95, value=DEFAULT_THRESHOLD, step=0.05, label="Confidence threshold",
                 info="Answers below it mark the row as needs_review",
             )
-            has_laya = laya_installed()
-            engine = gr.Radio(
-                ["Laya", "LM Studio"], value="Laya" if has_laya else "LM Studio", label="Engine",
-                info="Laya: fast, built for decisions · LM Studio: a local LLM, slower, often more accurate"
-                + ("" if has_laya else f" · Laya is not installed ({INSTALL_HINT})"),
-            )
             checkpoint = gr.Dropdown(
                 ["auto", "multilingual", "english"], value="auto", label="Laya model variant",
                 info="auto: English files use the English model, others the multilingual one",
-                visible=has_laya,
             )
-            lms_model = gr.Dropdown(
-                [], label="LM Studio model", visible=not has_laya, allow_custom_value=True,
-                info="Empty: the first model LM Studio has loaded",
-            )
-            lms_refresh = gr.Button("List LM Studio models", visible=not has_laya, scale=0)
-        run = gr.Button("Run", variant="primary")
+        run = gr.Button("Run", variant="primary", size="lg", elem_id="luar-run")
 
-        gr.Markdown("### Result")
+        gr.Markdown("### Result", elem_classes="luar-step")
         downloads = gr.File(label="Download (result copy + summary)", file_count="multiple", interactive=False)
         with gr.Tabs():
             with gr.Tab("Summary"):
@@ -243,10 +256,8 @@ def build() -> gr.Blocks:
         example.change(on_example, example, [upload, questions])
         q_upload.change(on_load_questions, q_upload, questions)
         q_save.click(on_save_questions, questions, q_file)
-        engine.change(on_engine, engine, [checkpoint, lms_model, lms_refresh])
-        lms_refresh.click(on_refresh_models, None, lms_model)
         run.click(
-            on_run, [source, columns, questions, threshold, engine, checkpoint, lms_model],
+            on_run, [source, columns, questions, threshold, checkpoint],
             [result, summary, downloads],
         )
     return demo
@@ -255,7 +266,7 @@ def build() -> gr.Blocks:
 def launch(port: int = 7860, share: bool = False, open_browser: bool = True) -> None:
     build().launch(
         server_name="127.0.0.1", server_port=port, share=share, inbrowser=open_browser,
-        theme=gr.themes.Soft(primary_hue="indigo", secondary_hue="slate"),
+        theme=THEME, css=CSS,
     )
 
 
