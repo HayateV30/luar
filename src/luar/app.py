@@ -26,6 +26,7 @@ EXAMPLES = ROOT / "examples"
 # the manual and the sample ship with the repo, not the wheel: their buttons hide when missing
 READMES = {"Português": ROOT / "README.pt-BR.md", "English": ROOT / "README.md"}
 SAMPLE_CSV = EXAMPLES / "amostra_teste.csv"
+SAMPLE_QUESTIONS = EXAMPLES / "amostra_teste_perguntas.json"  # the questions that go with the sample
 # the READMEs link their screenshots on GitHub (so PyPI shows them); the app serves the local copies
 IMAGES = ROOT / "docs" / "images"
 REMOTE_IMAGES = "https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/"
@@ -106,8 +107,9 @@ Add a column named `expected_<id>` to your file to measure accuracy on rows you 
 
 NO_QUESTIONS = (
     "There are no questions yet. In step 2, fill in at least the id and the question of one row "
-    "(or load a questions .json file). Trying the Sample CSV? Pick \"Amostra de teste (Sample CSV)\" "
-    "in \"…or try an example\" to load it with ready-made questions."
+    "(or load a questions .json file). Trying the Sample CSV? Download Sample JSON at the top of the "
+    "page and drop it in \"Load questions (.json)\", or pick \"Amostra de teste (Sample CSV)\" in "
+    "\"…or try an example\" to load both at once."
 )
 
 
@@ -241,10 +243,11 @@ def build() -> gr.Blocks:
             gr.Markdown("# LUAR")
             with gr.Row(elem_id="luar-actions"):
                 readme_btn = gr.Button("README", variant="secondary", size="md", visible=bool(readmes))
-                gr.DownloadButton(
-                    "Sample CSV", value=str(SAMPLE_CSV) if SAMPLE_CSV.exists() else None,
-                    variant="secondary", size="md", visible=SAMPLE_CSV.exists(),
-                )
+                for label, path in (("Sample CSV", SAMPLE_CSV), ("Sample JSON", SAMPLE_QUESTIONS)):
+                    gr.DownloadButton(
+                        label, value=str(path) if path.exists() else None,
+                        variant="secondary", size="md", visible=path.exists(),
+                    )
         gr.Markdown(TAGLINE, elem_id="luar-tagline")
         with gr.Sidebar(label="README", open=False, position="right", width="min(760px, 92vw)") as manual:
             with gr.Tabs():
