@@ -27,6 +27,13 @@ def test_half_written_row_still_reports_the_missing_id():
         app._rows_to_questions([["", "choice", "What is it about?", "a; b"]])
 
 
+def test_sample_buttons_offer_a_matching_pair():
+    """Sample CSV and Sample JSON must work together: every question has its answer column."""
+    df, _ = read_table(app.SAMPLE_CSV)
+    questions = load_questions(app.SAMPLE_QUESTIONS)
+    assert questions and all(f"expected_{q.id}" in df.columns for q in questions)
+
+
 def test_every_example_set_loads_and_matches_its_answer_key():
     for name, (data, questions) in app.EXAMPLE_SETS.items():
         df, _ = read_table(EXAMPLES / data)
