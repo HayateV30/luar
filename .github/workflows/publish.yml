@@ -20,7 +20,7 @@ jobs:
           python -m pip install --upgrade pip
           # CPU-only torch keeps the install small; the fast tests never load the model
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install -e ".[dev,laya]"
+          python -m pip install -e ".[dev]"
           python -m pytest -q
       - name: Build
         run: |

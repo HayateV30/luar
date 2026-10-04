@@ -243,7 +243,7 @@ def build() -> gr.Blocks:
                         gr.Markdown(readme_markdown(path))
         readme_btn.click(lambda: gr.Sidebar(open=True), None, manual)
         if not laya_installed():
-            gr.Markdown(f"**The Laya model is not installed.** Install it with `{INSTALL_HINT}` and restart LUAR.")
+            gr.Markdown(f"**The Laya engine could not be loaded.** Reinstall it with `{INSTALL_HINT}` and restart LUAR.")
         source = gr.State()
         with gr.Row(equal_height=False):
             with gr.Column(scale=1, elem_classes="luar-step"):

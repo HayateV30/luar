@@ -7,7 +7,7 @@ from pathlib import Path
 from ..questions import Question
 from .base import Answer, BackendError, Progress
 
-INSTALL_HINT = 'pip install "luar[laya]"'
+INSTALL_HINT = 'pip install "laya>=0.3.21"'
 
 CHECKPOINTS = {
     "auto": None,                    # picks english or multilingual from the file's language
@@ -28,13 +28,12 @@ def laya_installed() -> bool:
 
 
 def import_laya():
-    """Import the optional `laya` package, or explain how to install it."""
+    """Import the `laya` package (a LUAR dependency), or explain how to repair a broken install."""
     try:
         import laya  # heavy import (torch); only when actually needed
     except ImportError as e:
         raise LayaNotInstalledError(
-            f"The Laya engine is not installed. Install it with: {INSTALL_HINT} "
-            "(about 1.5 GB with the model)."
+            f"The Laya engine could not be loaded. Reinstall it with: {INSTALL_HINT}"
         ) from e
     return laya
 
