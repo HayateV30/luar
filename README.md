@@ -133,7 +133,8 @@ Drag your file onto the **CSV or XLSX** box (or click it to choose the file).
 **Just want to try it?** If you installed from the repository (see [section 11](#11-related-projects-contributing-and-license)),
 pick a bundled example in **…or try an example**, or click **Sample CSV** at the top of the page
 to download a test spreadsheet with 20 made-up customer messages (the **README** button next to it
-opens this manual). Otherwise, download
+opens this manual). To run it with ready-made questions, pick **Amostra de teste (Sample CSV)** in
+the same examples menu. Otherwise, download
 [reviews.csv](https://raw.githubusercontent.com/HayateV30/luar/main/examples/reviews.csv) and
 [reviews_questions.json](https://raw.githubusercontent.com/HayateV30/luar/main/examples/reviews_questions.json)
 and load them as described in steps 2 and 3.

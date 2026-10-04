@@ -104,6 +104,12 @@ ordered scale (*experimental*: the least reliable type in our tests).
 Add a column named `expected_<id>` to your file to measure accuracy on rows you already know.
 """
 
+NO_QUESTIONS = (
+    "There are no questions yet. In step 2, fill in at least the id and the question of one row "
+    "(or load a questions .json file). Trying the Sample CSV? Pick \"Amostra de teste (Sample CSV)\" "
+    "in \"…or try an example\" to load it with ready-made questions."
+)
+
 
 def _questions_to_rows(questions) -> list[list[str]]:
     rows = []
@@ -118,10 +124,13 @@ def _rows_to_questions(table) -> list:
     data = []
     for _, r in df.iterrows():
         values = ["" if pd.isna(v) else str(v).strip() for v in r.tolist()[:4]]
-        if not any(values):
-            continue
         qid, qtype, text, opts = values
+        # the table starts with a row whose type is already filled in: a type alone is not a question
+        if not (qid or text or opts):
+            continue
         data.append({"id": qid, "type": qtype.lower(), "question": text, "options": opts})
+    if not data:
+        raise QuestionError(NO_QUESTIONS)
     return parse_questions(data)
 
 
@@ -170,6 +179,7 @@ EXAMPLE_SETS = {
     "English reviews": ("reviews.csv", "reviews_questions.json"),
     "English reviews: severity (score)": ("reviews.csv", "reviews_severity_question.json"),
     "Avaliações em português": ("avaliacoes.csv", "avaliacoes_perguntas.json"),
+    "Amostra de teste (Sample CSV)": ("amostra_teste.csv", "amostra_teste_perguntas.json"),
 }
 
 
