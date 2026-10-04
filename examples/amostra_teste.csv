@@ -1,0 +1,21 @@
+﻿id;data;canal;mensagem;expected_assunto;expected_sentimento;expected_quer_reembolso
+1;2026-09-01;e-mail;"Comprei uma cafeteira e ela chegou com a jarra quebrada. Quero o meu dinheiro de volta.";produto;negativo;sim
+2;2026-09-01;chat;"O pedido foi entregue antes do prazo e muito bem embalado. Obrigado!";entrega;positivo;nao
+3;2026-09-02;telefone;"Fiquei 40 minutos esperando na linha e ninguém me atendeu.";atendimento;negativo;nao
+4;2026-09-02;site;"O mesmo fone está R$ 80 mais barato na loja concorrente. Achei caro.";preco;negativo;nao
+5;2026-09-03;e-mail;"A transportadora diz que entregou, mas o pacote nunca chegou na minha casa.";entrega;negativo;nao
+6;2026-09-03;chat;"A atendente Júlia foi super atenciosa e resolveu minha troca em minutos.";atendimento;positivo;nao
+7;2026-09-04;site;"O tênis é confortável, bonito e o tamanho veio certinho.";produto;positivo;nao
+8;2026-09-04;e-mail;"Fui cobrado duas vezes no cartão pela mesma compra. Peço o estorno de uma das cobranças.";preco;negativo;sim
+9;2026-09-05;chat;"A caixa chegou amassada, mas o liquidificador funciona normalmente.";entrega;positivo;nao
+10;2026-09-05;telefone;"A bateria do celular novo não dura nem meio dia. Muito decepcionado.";produto;negativo;nao
+11;2026-09-06;site;"Preço justo e o frete grátis ajudou bastante na decisão.";preco;positivo;nao
+12;2026-09-06;e-mail;"Pedi o cancelamento há uma semana e ainda não recebi resposta. Quero o reembolso.";atendimento;negativo;sim
+13;2026-09-07;chat;"O rastreio ficou parado cinco dias no mesmo lugar, sem nenhuma atualização.";entrega;negativo;nao
+14;2026-09-07;site;"A camiseta desbotou na primeira lavagem.";produto;negativo;nao
+15;2026-09-08;telefone;"O suporte técnico explicou a configuração com paciência. Funcionou!";atendimento;positivo;nao
+16;2026-09-08;e-mail;"O cupom de desconto não foi aplicado e paguei o valor cheio. Quero a diferença de volta.";preco;negativo;sim
+17;2026-09-09;site;"A panela é pesada e de ótima qualidade, vale cada centavo.";produto;positivo;nao
+18;2026-09-09;chat;"Entregaram no endereço errado e o vizinho só me avisou dois dias depois.";entrega;negativo;nao
+19;2026-09-10;e-mail;"A smart TV veio sem controle remoto. Prefiro devolver e receber o dinheiro de volta.";produto;negativo;sim
+20;2026-09-10;site;"Achei a assinatura mensal cara para o que oferece.";preco;negativo;nao

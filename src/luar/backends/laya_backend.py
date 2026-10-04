@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+from pathlib import Path
 
 from ..questions import Question
 from .base import Answer, BackendError, Progress
@@ -33,7 +34,7 @@ def import_laya():
     except ImportError as e:
         raise LayaNotInstalledError(
             f"The Laya engine is not installed. Install it with: {INSTALL_HINT} "
-            "(about 1.5 GB with the model), or use the LM Studio engine."
+            "(about 1.5 GB with the model)."
         ) from e
     return laya
 
@@ -70,6 +71,41 @@ def extract_answer(raw: dict | None, qtype: str, labels: list[str] | None = None
     return Answer(raw.get("choice"), None if conf is None else float(conf))
 
 
+MODEL_FILES = ("rl_agent_config.json", "model.safetensors", "tokenizer/*", "encoder/*")
+
+
+def local_checkpoint(repo: str, subfolder: str | None) -> str | None:
+    """The downloaded copy of the repo when it holds this checkpoint, without touching the network;
+    None when it was never downloaded (the first run then fetches it)."""
+    from huggingface_hub import snapshot_download
+
+    prefix = f"{subfolder}/" if subfolder else ""
+    try:
+        path = Path(snapshot_download(
+            repo, local_files_only=True, allow_patterns=[prefix + f for f in MODEL_FILES],
+        ))
+    except Exception:  # not in the cache (or no huggingface_hub cache at all)
+        return None
+    folder = path / subfolder if subfolder else path
+    if all((folder / name).is_file() for name in ("rl_agent_config.json", "model.safetensors")):
+        return str(path)
+    return None
+
+
+def download_checkpoints(repo: str = "convaiinnovations/laya",
+                         checkpoints: tuple[str, ...] = ("multilingual", "english")) -> list[str]:
+    """Fetch the checkpoints so later runs never need the network. Returns the local folders."""
+    import_laya()
+    from huggingface_hub import snapshot_download
+
+    folders = []
+    for name in checkpoints:
+        prefix = f"{CHECKPOINTS[name]}/" if CHECKPOINTS[name] else ""
+        path = snapshot_download(repo, allow_patterns=[prefix + f for f in MODEL_FILES])
+        folders.append(str(Path(path) / CHECKPOINTS[name]) if CHECKPOINTS[name] else path)
+    return folders
+
+
 class LayaBackend:
     def __init__(
         self,
@@ -97,9 +133,11 @@ class LayaBackend:
             kwargs = {}
             if self.device:
                 kwargs["device"] = self.device
-            if CHECKPOINTS[self.checkpoint]:
-                kwargs["subfolder"] = CHECKPOINTS[self.checkpoint]
-            self._agent = laya.load(self.repo, **kwargs)
+            subfolder = CHECKPOINTS[self.checkpoint]
+            if subfolder:
+                kwargs["subfolder"] = subfolder
+            # once downloaded, load from disk: laya.load(repo) asks the Hub for updates on every run
+            self._agent = laya.load(local_checkpoint(self.repo, subfolder) or self.repo, **kwargs)
         return self._agent
 
     def decide(
