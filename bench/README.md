@@ -1,16 +1,16 @@
 # LUAR evaluation on public data
 
-How well do LUAR's engines label real text? This folder holds the script and the results of a test
-on two public datasets labeled by people. The user manual summarizes them in
-[section 8](../README.md#8-choosing-an-engine-laya-or-lm-studio).
+How well does LUAR label real text? This folder holds the script and the results of a test on two
+public datasets labeled by people. The user manual summarizes them in
+[section 8](../README.md#8-how-accurate-is-laya).
 
 ## Setup
 
 - **Samples:** 300 texts per dataset, balanced by label, drawn with a fixed seed (`20261002`).
-- **How the engines are run:** exactly as a user would, with `run_file` on a CSV with `expected_*`
+- **How the engine is run:** exactly as a user would, with `run_file` on a CSV with `expected_*`
   columns and the default confidence threshold (0.7).
 - **Machine:** Windows laptop, Intel Iris Xe (no dedicated GPU), 16 GB RAM.
-- **Versions:** Laya 0.3.21 with `auto` checkpoint; LM Studio with `qwen3.5-4b`.
+- **Version:** Laya 0.3.21 with `auto` checkpoint.
 
 | Dataset | Language | Questions | Labels from |
 |---|---|---|---|
@@ -23,21 +23,18 @@ the neutral and two-star cases more frequent than in the raw data.
 
 ## Results
 
-| Dataset | Question | Type | Laya | LM Studio |
-|---|---|---|---:|---:|
-| AG News | topic | choice | **93%** | 89% |
-| B2W | recomenda | noul | 70% | not run |
-| B2W | sentimento | choice | 68% | not run |
-| B2W | estrelas | score | 26% (60% within ±1) | not run |
+| Dataset | Question | Type | Accuracy |
+|---|---|---|---:|
+| AG News | topic | choice | **93%** |
+| B2W | recomenda | noul | 70% |
+| B2W | sentimento | choice | 68% |
+| B2W | estrelas | score | 26% (60% within ±1) |
 
-| | Laya | LM Studio |
-|---|---|---|
-| Time per row | 1.0 s (AG News, 1 question) · 1.28 s (B2W, 3 questions) | 8.0 s (AG News, 1 question) |
-| Accuracy when confidence ≥ 0.7 (share of rows) | AG News 98% (84%) · B2W 72–75% (82–83%) | AG News 93% (95%) |
-| Expected calibration error (ECE) | AG News 0.085 · B2W 0.12–0.18 | AG News 0.078 |
-
-The LM Studio run on B2W was stopped: at ~8 s per question it would have taken about 2 hours and was
-slowing down the machine.
+| | |
+|---|---|
+| Time per row | 1.0 s (AG News, 1 question) · 1.28 s (B2W, 3 questions) |
+| Accuracy when confidence ≥ 0.7 (share of rows) | AG News 98% (84%) · B2W 72–75% (82–83%) |
+| Expected calibration error (ECE) | AG News 0.085 · B2W 0.12–0.18 |
 
 Notable findings:
 
@@ -48,14 +45,13 @@ Notable findings:
 - **`score` is weak:** the exact star rating was right 26% of the time (chance is 20%). Its confidence
   was below 0.7 for 96% of the rows, which is why `score` questions no longer mark rows for review.
 
-Full numbers, including confusion matrices: [`results/laya.json`](results/laya.json),
-[`results/lmstudio.json`](results/lmstudio.json).
+Full numbers, including confusion matrices: [`results/laya.json`](results/laya.json).
 
 ## Running it yourself
 
 ```bash
 pip install -e ".[all]" pyarrow
-python bench/evaluate.py --data-dir <a folder for the downloads> --engines laya lmstudio --rows 300
+python bench/evaluate.py --data-dir <a folder for the downloads> --rows 300
 ```
 
 The script downloads the two datasets (49 MB + 1.2 MB) into `--data-dir`. They are not included in

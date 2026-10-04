@@ -18,9 +18,9 @@ pytest              # fast tests: no model, no server (about 5 s)
 pytest -m slow -s   # real models on the bundled examples
 ```
 
-The slow tests run Laya (downloads the weights on first use) and LM Studio (skipped if the server
-is not running or has no model loaded). They check accuracy on the files in `examples/`, which carry
-`expected_<id>` answer-key columns.
+The slow tests run Laya (downloads the weights on first use, or run `luar download` before). They
+check accuracy on the files in `examples/`, which carry `expected_<id>` answer-key columns, and that
+a downloaded model runs with the network blocked.
 
 ## Layout
 
@@ -32,9 +32,8 @@ src/luar/
   report.py      Markdown summary
   backends/      the decision engines
     base.py            Answer, Backend protocol, BackendError
-    laya_backend.py    Laya (optional extra: luar[laya])
-    lmstudio_backend.py LM Studio (OpenAI-compatible server, standard library only)
-  cli.py         `luar run`, `luar columns`, `luar ui`
+    laya_backend.py    Laya (optional extra: luar[laya]), loaded from the local cache once downloaded
+  cli.py         `luar run`, `luar columns`, `luar download`, `luar ui`
   app.py         Gradio web interface (luar[ui])
 examples/        sample data and questions, with expected_* columns
 docs/images/     screenshots used in the README
@@ -55,21 +54,19 @@ def decide(self, texts: list[str], questions: list[Question], progress=None) -> 
   itself. Rows below the threshold are marked `needs_review`, so a made-up confidence defeats the
   point.
 - Raise a `BackendError` subclass with a message that says how to fix the problem (install
-  something, start a server…). The CLI and the web interface show that message as is.
+  something, download a model…). The CLI and the web interface show that message as is.
 - Register it in `backends/__init__.py` (`make_backend`) and expose it in `cli.py` and `app.py`.
 
-## How the engines work
+## How Laya works
 
 **Laya** answers typed questions in one forward pass and returns probabilities for every option.
 `auto` picks the `english` checkpoint when the questions and at least 80% of the sampled rows are
 English, and `multilingual` otherwise; on English text the English checkpoint was clearly more
 accurate in our tests.
 
-**LM Studio** shows each option with a letter (A, B, C…), asks for a one-token answer with
-reasoning turned off (`reasoning_effort: none`), and reads the top 20 `logprobs` of that token. The
-probabilities of the valid letters (counting variants such as ` B` or `b`) are renormalized and the
-highest one is the answer and its confidence. The row text comes before the question, so LM Studio
-can reuse its prompt cache across the questions of the same row.
+LUAR makes no outside connection once installed: the interface turns off Gradio's telemetry and
+serves the README screenshots from `docs/images/`, and Laya is loaded from the Hugging Face cache
+when it is there. Keep it that way: `tests/test_offline.py` fails any connection to another host.
 
 ## Releasing
 

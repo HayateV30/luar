@@ -20,7 +20,7 @@ nunca saem da sua máquina.
 5. [Como escrever boas perguntas](#5-como-escrever-boas-perguntas)
 6. [Entendendo os resultados](#6-entendendo-os-resultados)
 7. [Conferindo se dá para confiar nas respostas](#7-conferindo-se-dá-para-confiar-nas-respostas)
-8. [Escolhendo o motor: Laya ou LM Studio](#8-escolhendo-o-motor-laya-ou-lm-studio)
+8. [Quanto a Laya acerta](#8-quanto-a-laya-acerta)
 9. [Usando pela linha de comando](#9-usando-pela-linha-de-comando)
 10. [Problemas comuns e perguntas frequentes](#10-problemas-comuns-e-perguntas-frequentes)
 11. [Projetos relacionados, como contribuir e licença](#11-projetos-relacionados-como-contribuir-e-licença)
@@ -68,36 +68,36 @@ Você precisa de:
   *Prompt de Comando*) e digite `python --version`. Se não tiver, instale pelo
   [python.org](https://www.python.org/downloads/) e marque *"Add python.exe to PATH"* na instalação.
 - **Uma planilha** em `.xlsx` ou `.csv`, com o texto em uma ou mais colunas.
-- **Espaço em disco e um download inicial**, que dependem do motor (veja abaixo). Depois do
-  primeiro uso, tudo funciona sem internet.
+- **Espaço em disco e um download inicial** de cerca de 2,5 GB (bibliotecas e os dois modelos da
+  Laya). Depois disso, tudo funciona sem internet.
 
-A LUAR tem dois motores, o "cérebro" que lê os textos. Você pode instalar um ou os dois:
+O "cérebro" que lê os textos é a **[Laya](https://huggingface.co/convaiinnovations/laya)**, um
+modelo de decisão aberto feito para este tipo de pergunta: em vez de escrever um texto, ela dá uma
+probabilidade para cada opção. Roda no seu computador, sem placa de vídeo, a cerca de 1 segundo por
+linha.
 
-| Motor | O que é | Velocidade (notebook sem placa de vídeo) | Download |
-|---|---|---|---|
-| **Laya** | Um modelo de decisão aberto, feito para este tipo de pergunta: responde com probabilidades em vez de escrever texto. | Rápido: cerca de 1 s por linha | ~1,5 GB no primeiro uso (bibliotecas + modelo) |
-| **LM Studio** | Qualquer modelo de chat rodando no app gratuito [LM Studio](https://lmstudio.ai) (testado com Qwen 3.5 4B). | Lento: cerca de 8 s por linha *para cada pergunta* | A LUAR em si tem ~200 MB; o modelo é baixado no LM Studio (Qwen 3.5 4B: 3,4 GB) |
-
-Na dúvida, **use a Laya**: não precisa de outro programa, é pelo menos 8 vezes mais rápida e, nos
-nossos testes com dados reais, acertou tanto ou mais (seção 8).
+A Laya **já vem pronta**: não é preciso treiná-la, e ela não aprende com as suas planilhas. O que
+melhora as respostas é escrever bem as perguntas (seção 5) e medir o acerto numa amostra (seção 7).
 
 ---
 
 ## 3. Instalação
 
-Abra um terminal e rode **um** destes comandos:
+Abra um terminal e rode:
 
 ```bash
 pip install "luar[all]"
 ```
-Tudo: interface web + motor Laya. **Recomendado.**
+Instala a interface web e a Laya.
+
+Para deixar a LUAR pronta para usar **sem internet**, baixe os modelos da Laya logo depois de
+instalar:
 
 ```bash
-pip install "luar[ui]"
+luar download
 ```
-Só a interface web, para quem vai usar o LM Studio como motor (download menor).
-
-Para acrescentar a Laya depois, rode `pip install "luar[laya]"`.
+Baixa os modelos multilíngue e inglês (cerca de 1,5 GB, uma vez só). Depois disso, a LUAR não faz
+nenhuma conexão externa: nem a interface, nem o modelo.
 
 > **No Linux**, instale antes a versão para CPU do PyTorch, senão o pip baixa uma versão para
 > placa de vídeo com vários GB: `pip install torch --index-url https://download.pytorch.org/whl/cpu`
@@ -133,7 +133,9 @@ Arraste o arquivo para a caixa **CSV or XLSX** (ou clique nela para escolher o a
 
 **Só quer experimentar?** Se instalou a partir do repositório (veja a
 [seção 11](#11-projetos-relacionados-como-contribuir-e-licença)), escolha um exemplo em
-**…or try an example**. Se não, baixe
+**…or try an example**, ou clique em **Sample CSV**, no alto da página, para baixar uma planilha de
+teste com 20 mensagens fictícias de clientes (o botão **README**, ao lado, abre este manual). Se
+não, baixe
 [avaliacoes.csv](https://raw.githubusercontent.com/HayateV30/luar/main/examples/avaliacoes.csv) e
 [avaliacoes_perguntas.json](https://raw.githubusercontent.com/HayateV30/luar/main/examples/avaliacoes_perguntas.json)
 e carregue-os como nos passos 2 e 3.
@@ -165,12 +167,11 @@ tabela; **Load questions (.json)** carrega de volta. Escrever as perguntas uma v
 
 - **Confidence threshold** (limite de confiança, padrão `0,7`): toda resposta abaixo dele é marcada
   em `needs_review`. Aumente para revisar mais linhas, diminua para revisar menos.
-- **Engine** (motor): Laya ou LM Studio (veja a [seção 8](#8-escolhendo-o-motor-laya-ou-lm-studio)).
 - **Laya model variant** (variante do modelo): deixe em `auto`. Ele usa o modelo inglês para
   arquivos em inglês e o multilíngue para os demais.
 
-Clique em **Run**. Na primeira vez a Laya baixa o modelo, o que leva alguns minutos; depois, as
-execuções começam em segundos.
+Clique em **Run**. Se você não rodou `luar download` na instalação, na primeira vez a Laya baixa o
+modelo, o que leva alguns minutos; depois, as execuções começam em segundos.
 
 ### Passo 5: baixe os resultados
 
@@ -200,9 +201,13 @@ A qualidade das respostas depende principalmente de como as perguntas são escri
 
 > ⚠️ **`score` é experimental.** Foi o tipo menos confiável nos testes: em 300 avaliações reais de
 > produtos, a Laya acertou a nota que o próprio cliente deu (1 a 5 estrelas) só 26% das vezes, embora
-> 60% das respostas tenham errado por no máximo uma estrela. Prefira `choice` ou `noul` quando puder
-> e confira os resultados de `score` você mesmo. Como a confiança dele quase sempre é baixa, uma
-> pergunta `score` não marca linhas para revisão.
+> 60% das respostas tenham errado por no máximo uma estrela. Numa escala de urgência (baixa / média /
+> alta) em mensagens de atendimento, acertou 3 de 12, e nem descrever cada nível, nem inverter a
+> ordem, nem trocar para `choice` resolveu: algumas escalas o modelo simplesmente não consegue medir.
+> Prefira `choice` ou `noul` quando puder (por exemplo, *"A mensagem relata prejuízo financeiro ou
+> risco à saúde?"* em vez de um nível de urgência), descreva cada nível se usar `score`, e **sempre
+> meça com colunas `expected_`** (seção 7). Como a confiança dele quase sempre é baixa, uma pergunta
+> `score` não marca linhas para revisão.
 
 ### Dicas
 
@@ -308,62 +313,36 @@ Antes de usar a LUAR num arquivo grande, meça o acerto numa amostra cujas respo
    - Linhas deixadas em branco na coluna `expected_` simplesmente não entram na conta.
 3. **Rode a LUAR** nesse arquivo. O relatório passa a mostrar, para cada pergunta, uma linha como
    **Accuracy against `expected_assunto`: 9/10 (90%)**.
-4. Se o acerto estiver baixo, **melhore as perguntas** (seção 5), experimente o **outro motor** e
-   rode de novo até ficar satisfeito. Depois, rode o arquivo completo.
+4. Se o acerto estiver baixo, **melhore as perguntas** (seção 5): descreva melhor as opções, divida
+   perguntas que misturam duas coisas, troque `score` por `choice` ou `noul`, ou teste a outra
+   variante do modelo (**Laya model variant**). Rode de novo até ficar satisfeito. Depois, rode o
+   arquivo completo.
 
 As colunas `expected_` nunca são mostradas ao modelo, então não "entregam" as respostas.
 
 ---
 
-## 8. Escolhendo o motor: Laya ou LM Studio
+## 8. Quanto a Laya acerta
 
-Medimos os dois motores em 300 textos de dois conjuntos de dados públicos classificados por pessoas,
-num notebook sem placa de vídeo dedicada ([detalhes e script](https://github.com/HayateV30/luar/tree/main/bench)):
+Medimos a Laya em 300 textos de dois conjuntos de dados públicos classificados por pessoas, num
+notebook sem placa de vídeo dedicada ([detalhes e script](https://github.com/HayateV30/luar/tree/main/bench)):
 
-| | Laya | LM Studio (Qwen 3.5 4B) |
+| Pergunta | Tipo | Acerto |
 |---|---|---|
-| **Tema de notícias** (inglês, AG News, 4 temas) | **93%** | 89% |
-| **Recomendaria?** (avaliações em português, B2W) | 70% | não medido* |
-| **Sentimento** positivo / neutro / negativo (B2W) | 68% (neutro: 5%) | não medido* |
-| **Nota de 1 a 5 estrelas** (`score`, B2W) | 26% (60% com até uma estrela de diferença) | não medido* |
-| Acerto quando a confiança ≥ 0,7 | 98% notícias · 72–75% avaliações | 93% notícias |
-| Tempo por linha | ~1 s (1 pergunta) a ~1,3 s (3 perguntas) | ~8 s por pergunta |
-| Precisa de outro programa | Não | Sim, o LM Studio |
+| **Tema de notícias** (inglês, AG News, 4 temas) | `choice` | **93%** |
+| **Recomendaria?** (avaliações em português, B2W) | `noul` | 70% |
+| **Sentimento** positivo / neutro / negativo (B2W) | `choice` | 68% (neutro: 5%) |
+| **Nota de 1 a 5 estrelas** (B2W) | `score` | 26% (60% com até uma estrela de diferença) |
 
-<sub>*Interrompido: a ~8 s por pergunta, 300 avaliações × 3 perguntas levariam cerca de 2 horas na
-máquina de teste. O gabarito das avaliações vem da nota que o próprio cliente deu, que nem sempre
-bate com o texto; é um teste difícil e com ruído.</sub>
+- **Acerto quando a confiança é 0,7 ou mais:** 98% nas notícias e 72–75% nas avaliações.
+- **Tempo por linha:** cerca de 1 s com uma pergunta e 1,3 s com três.
 
-**A Laya é o melhor padrão**: mais rápida, sem programa extra e pelo menos tão precisa onde deu para
-comparar. Nos nossos exemplos curtos, escritos à mão, o LM Studio acertou mais (100%), mas essa
-vantagem não se manteve nas notícias reais. O LM Studio vale a tentativa quando a Laya vai mal na
-sua amostra (por exemplo, com perguntas ou idiomas incomuns) e o arquivo é pequeno. Em qualquer
-caso, **meça na sua amostra com colunas `expected_`** (seção 7) antes de confiar num arquivo
-grande.
+<sub>O gabarito das avaliações vem da nota que o próprio cliente deu, que nem sempre bate com o
+texto; é um teste difícil e com ruído.</sub>
 
-### Configurando o LM Studio
-
-1. Instale o [LM Studio](https://lmstudio.ai) e baixe nele um modelo de chat (por exemplo
-   `qwen3.5-4b`). Modelos maiores costumam acertar mais, mas são mais lentos.
-2. Carregue o modelo e ligue o servidor local, no app (aba *Developer* → *Start Server*) ou num
-   terminal:
-   ```bash
-   lms server start
-   lms load qwen3.5-4b
-   ```
-3. Na LUAR, escolha **LM Studio** como motor. Clique em **List LM Studio models** para escolher um
-   modelo, ou deixe vazio para usar o que já está carregado.
-
-Bom saber:
-
-- A LUAR se conecta em `http://localhost:1234/v1`. Se o seu servidor do LM Studio usa outro
-  endereço, defina a variável de ambiente `LUAR_LMSTUDIO_URL`.
-- Se você ativou **Require API key** no LM Studio, coloque a chave numa variável de ambiente chamada
-  `LMSTUDIO_API_KEY` (nunca num arquivo que você compartilha).
-- A LUAR desliga o "raciocínio" do modelo e pede uma resposta de uma letra só, então cada pergunta
-  é rápida e a confiança vem das próprias probabilidades do modelo.
-- A LUAR lê as probabilidades dos tokens do modelo, então mantenha o LM Studio atualizado (testado
-  com a versão de outubro de 2026).
+O acerto depende muito do tipo de pergunta e dos seus dados: perguntas claras de escolha ou de
+sim/não vão bem; escalas (`score`) e opções "do meio" vão mal. Por isso, **meça na sua amostra com
+colunas `expected_`** (seção 7) antes de confiar num arquivo grande.
 
 ---
 
@@ -376,6 +355,11 @@ trabalho ou automatizá-lo.
 luar columns minha_planilha.xlsx
 ```
 Lista as colunas de um arquivo, com um valor de exemplo de cada.
+
+```bash
+luar download
+```
+Baixa os modelos da Laya (multilíngue e inglês) para usar a LUAR sem internet depois.
 
 ```bash
 luar run minha_planilha.xlsx -q perguntas.json -c avaliacao
@@ -391,11 +375,8 @@ acrescenta `_2`, `_3`… em vez de sobrescrever.
 | `-t`, `--threshold` | Limite de confiança, de 0 a 1 (padrão `0.7`). |
 | `-o`, `--out-dir` | Salva os resultados em outra pasta. |
 | `--sheet` | Aba do Excel a ler (padrão: a primeira). |
-| `-e`, `--engine` | `laya` ou `lmstudio` (padrão: Laya se estiver instalada, senão LM Studio). |
-| `--checkpoint` | Laya: `auto` (padrão), `multilingual` ou `english`. |
-| `--device` | Laya: `cpu` ou `cuda` (padrão: automático). |
-| `--model` | LM Studio: id do modelo (padrão: o modelo carregado). |
-| `--lmstudio-url` | LM Studio: endereço do servidor. |
+| `--checkpoint` | Variante da Laya: `auto` (padrão), `multilingual` ou `english`. |
+| `--device` | `cpu` ou `cuda` (padrão: automático). |
 
 Usando a LUAR pelo Python:
 
@@ -403,7 +384,7 @@ Usando a LUAR pelo Python:
 from luar import load_questions, run_file
 from luar.backends import make_backend
 
-backend = make_backend("laya")   # ou make_backend("lmstudio")
+backend = make_backend("laya")
 result = run_file("dados.csv", load_questions("perguntas.json"), ["texto"], backend)
 print(result.table_path, result.summary_path)
 ```
@@ -413,8 +394,15 @@ print(result.table_path, result.summary_path)
 ## 10. Problemas comuns e perguntas frequentes
 
 **Os meus dados saem do computador?**
-Não. Os dois motores rodam localmente. Os únicos downloads são os programas e os modelos, na
-primeira vez.
+Não. A Laya roda no seu computador, e a LUAR não faz nenhuma conexão externa: a interface e o modelo
+funcionam sem internet. Os únicos downloads são os programas e os modelos, na instalação (veja
+`luar download` na seção 3).
+
+**Preciso treinar a Laya? Ela aprende com os meus dados ou com as minhas correções?**
+Não e não. A Laya já vem treinada e responde perguntas novas só a partir do texto da pergunta e das
+opções; ela não guarda nada das suas planilhas, nem das correções que você faz no resultado. Para
+melhorar as respostas, reescreva as perguntas (seção 5) e meça o acerto com colunas `expected_`
+(seção 7).
 
 **O comando `luar` não é reconhecido, ou o Windows diz "acesso negado".**
 Use `python -m luar ui` (ou `python -m luar run …`). Algumas configurações de segurança do Windows
@@ -432,27 +420,19 @@ Provavelmente você está rodando a LUAR num arquivo que já é um resultado da 
 original, ou mude os ids das perguntas.
 
 **"The Laya engine is not installed".**
-Rode `pip install "luar[laya]"`, ou troque o motor para LM Studio.
-
-**"Could not reach LM Studio".**
-Ligue o servidor no LM Studio (*Developer → Start Server*, ou `lms server start`) e carregue um modelo.
-
-**"LM Studio did not return token probabilities".**
-Atualize o LM Studio para uma versão recente.
+Rode `pip install "luar[all]"` e abra a LUAR de novo.
 
 **Está lento.**
 A Laya leva de 30 a 60 segundos para carregar no início de cada sessão; depois disso processa cerca
-de uma linha por segundo. O LM Studio leva cerca de 8 segundos por pergunta em cada linha (um arquivo
-de 1.000 linhas com 3 perguntas leva mais de 6 horas): use menos perguntas, um arquivo menor ou a
-Laya.
+de uma linha por segundo, então um arquivo de 1.000 linhas leva uns 20 minutos. Para acertar as
+perguntas, teste antes numa amostra pequena.
 
 **Muitas linhas ficam marcadas em `needs_review`.**
 Melhore as descrições das opções (seção 5), meça o acerto com colunas `expected_` (seção 7), ou
 diminua o limite de confiança se o acerto já estiver bom.
 
 **Quais idiomas funcionam?**
-O modelo multilíngue da Laya entende muitos idiomas (aqui foi testado em português e inglês). No
-LM Studio, depende do modelo escolhido.
+O modelo multilíngue da Laya entende muitos idiomas (aqui foi testado em português e inglês).
 
 ---
 
