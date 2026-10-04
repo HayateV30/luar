@@ -24,6 +24,7 @@ classifiers = [
 dependencies = [
     "pandas>=2.0",
     "openpyxl>=3.1",
+    "laya>=0.3.21",
 ]
 
 [project.urls]
@@ -34,8 +35,8 @@ Changelog = "https://github.com/HayateV30/luar/releases"
 
 [project.optional-dependencies]
 ui = ["gradio>=5.0"]
-laya = ["laya>=0.3.21"]
-all = ["luar[ui,laya]"]
+laya = []  # Laya is now a required dependency; kept so `luar[laya]` still installs cleanly
+all = ["luar[ui]"]
 dev = ["pytest>=8"]
 
 [project.scripts]

@@ -32,7 +32,7 @@ src/luar/
   report.py      Markdown summary
   backends/      the decision engines
     base.py            Answer, Backend protocol, BackendError
-    laya_backend.py    Laya (optional extra: luar[laya]), loaded from the local cache once downloaded
+    laya_backend.py    Laya (a required dependency), loaded from the local cache once downloaded
   cli.py         `luar run`, `luar columns`, `luar download`, `luar ui`
   app.py         Gradio web interface (luar[ui])
 examples/        sample data and questions, with expected_* columns

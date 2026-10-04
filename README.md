@@ -86,7 +86,8 @@ Open a terminal and run:
 ```bash
 pip install "luar[all]"
 ```
-Installs the web interface and Laya.
+Installs LUAR with Laya and the web interface. (`pip install luar`, without `[all]`, installs only
+the command line, still with Laya.)
 
 To have LUAR ready to use **without internet**, download the Laya models right after installing:
 
@@ -418,8 +419,9 @@ import it manually (*Data → From Text/CSV*), choose *UTF-8*.
 You are probably running LUAR on a file that is already a LUAR result. Use the original file, or
 change the question ids.
 
-**"The Laya engine is not installed".**
-Run `pip install "luar[all]"` and open LUAR again.
+**"The Laya engine could not be loaded".**
+Laya comes with LUAR, so this means a broken install. Run `pip install "laya>=0.3.21"` and open LUAR
+again.
 
 **It is slow.**
 Laya takes 30 to 60 seconds to load at the start of each session; after that it handles about one

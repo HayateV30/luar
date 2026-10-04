@@ -70,9 +70,9 @@ def test_missing_laya_gives_install_hint(monkeypatch, capsys):
     from luar.cli import main as cli_main
 
     monkeypatch.setitem(__import__("sys").modules, "laya", None)  # makes `import laya` fail
-    with pytest.raises(LayaNotInstalledError, match=r'pip install "luar\[laya\]"'):
+    with pytest.raises(LayaNotInstalledError, match=r'pip install "laya>=0.3.21"'):
         LayaBackend().decide(["t"], load_questions(EXAMPLES / "reviews_questions.json"))
 
     code = cli_main(["run", str(EXAMPLES / "reviews.csv"), "-q", str(EXAMPLES / "reviews_questions.json"),
                      "-c", "review"])
-    assert code == 2 and "luar[laya]" in capsys.readouterr().err
+    assert code == 2 and "pip install" in capsys.readouterr().err
