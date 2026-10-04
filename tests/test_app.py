@@ -22,6 +22,18 @@ def test_no_questions_explains_what_to_do():
             app._rows_to_questions(table)
 
 
+def test_no_questions_message_only_mentions_samples_that_exist(monkeypatch, tmp_path):
+    with pytest.raises(QuestionError, match="Sample JSON") as repo:
+        app._rows_to_questions([["", "choice", "", ""]])
+    # an install from PyPI has no examples/ folder: the sample buttons and menu are hidden
+    monkeypatch.setattr(app, "SAMPLE_QUESTIONS", tmp_path / "missing.json")
+    with pytest.raises(QuestionError) as pypi:
+        app._rows_to_questions([["", "choice", "", ""]])
+    assert "Load questions (.json)" in str(pypi.value)
+    assert "Sample" not in str(pypi.value) and "try an example" not in str(pypi.value)
+    assert str(repo.value).startswith(str(pypi.value))
+
+
 def test_half_written_row_still_reports_the_missing_id():
     with pytest.raises(QuestionError, match="Invalid question id"):
         app._rows_to_questions([["", "choice", "What is it about?", "a; b"]])

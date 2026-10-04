@@ -106,11 +106,18 @@ Add a column named `expected_<id>` to your file to measure accuracy on rows you 
 """
 
 NO_QUESTIONS = (
-    "There are no questions yet. In step 2, fill in at least the id and the question of one row "
-    "(or load a questions .json file). Trying the Sample CSV? Download Sample JSON at the top of the "
-    "page and drop it in \"Load questions (.json)\", or pick \"Amostra de teste (Sample CSV)\" in "
-    "\"…or try an example\" to load both at once."
+    "There are no questions yet. In step 2, fill in at least the id and the question of one row, "
+    "or load a questions .json file in \"Load questions (.json)\"."
 )
+# only offered where the sample buttons and the examples menu exist (a repository checkout, not PyPI)
+SAMPLE_HINT = (
+    " Trying the Sample CSV? Download Sample JSON at the top of the page and load it there, or pick "
+    "\"Amostra de teste (Sample CSV)\" in \"…or try an example\" to load both at once."
+)
+
+
+def no_questions_message() -> str:
+    return NO_QUESTIONS + (SAMPLE_HINT if SAMPLE_QUESTIONS.exists() else "")
 
 
 def _questions_to_rows(questions) -> list[list[str]]:
@@ -132,7 +139,7 @@ def _rows_to_questions(table) -> list:
             continue
         data.append({"id": qid, "type": qtype.lower(), "question": text, "options": opts})
     if not data:
-        raise QuestionError(NO_QUESTIONS)
+        raise QuestionError(no_questions_message())
     return parse_questions(data)
 
 
