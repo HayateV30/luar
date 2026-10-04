@@ -1,9 +1,15 @@
-"""Web interface (Gradio). Runs on 127.0.0.1 only: files never leave the machine."""
+"""Web interface (Gradio). Runs on 127.0.0.1 only and makes no outside connections:
+files never leave the machine and the page works offline."""
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 from pathlib import Path
+from urllib.parse import quote
+
+# Gradio sends usage telemetry and checks its version online unless told not to
+os.environ.setdefault("GRADIO_ANALYTICS_ENABLED", "False")
 
 import gradio as gr
 import pandas as pd
@@ -15,13 +21,19 @@ from .questions import EXPERIMENTAL_TYPES, QuestionError, dump_questions, load_q
 from .report import render_summary
 from .tables import read_table
 
-EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+ROOT = Path(__file__).resolve().parents[2]
+EXAMPLES = ROOT / "examples"
+# the manual and the sample ship with the repo, not the wheel: their buttons hide when missing
+READMES = {"Português": ROOT / "README.pt-BR.md", "English": ROOT / "README.md"}
+SAMPLE_CSV = EXAMPLES / "amostra_teste.csv"
+# the READMEs link their screenshots on GitHub (so PyPI shows them); the app serves the local copies
+IMAGES = ROOT / "docs" / "images"
+REMOTE_IMAGES = "https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/"
 QUESTION_HEADERS = ["id", "type", "question", "options"]
 PREVIEW_ROWS = 8
 _backends: dict[str, LayaBackend] = {}  # loaded models, reused between runs
 
-INTRO = """
-# LUAR
+TAGLINE = """
 **Local Utility for Automated Reviews.** Drop a spreadsheet, say what you want to know about each row,
 and get a copy with the answers plus a summary. Everything runs on this computer, with the Laya model.
 """
@@ -66,6 +78,18 @@ THEME = gr.themes.Base(
 
 CSS = """
 .gradio-container { max-width: 1200px !important; margin: 0 auto; }
+/* header: title centered on the page, actions on the right of the same line */
+#luar-header { display: grid !important; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+#luar-header > :first-child { grid-column: 2; }
+#luar-header h1 { margin: 0; text-align: center; letter-spacing: 0.08em; }
+#luar-actions { grid-column: 3; justify-self: end; display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 8px; }
+#luar-actions > * { flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; }
+#luar-actions button { min-height: 40px; padding: 0 16px; white-space: nowrap; }
+#luar-tagline { text-align: center; max-width: 72ch; margin: 0 auto; }
+@media (max-width: 640px) {
+  #luar-header { grid-template-columns: 1fr; }
+  #luar-header > :first-child, #luar-actions { grid-column: 1; justify-self: center; justify-content: center; }
+}
 .luar-step h3 { margin-top: 8px; }
 #luar-run { min-height: 48px; font-size: 1rem; }
 button, [role="button"], label:has(input) { cursor: pointer; }
@@ -194,9 +218,30 @@ def on_run(file, columns, table, threshold, checkpoint, progress=gr.Progress()):
     return result.table, render_summary(result), [str(result.table_path), str(result.summary_path)]
 
 
+def readme_markdown(path: Path) -> str:
+    """The README with its screenshots pointed at the local files, so the manual works offline."""
+    local = f"/gradio_api/file={quote(IMAGES.as_posix())}/"
+    return path.read_text(encoding="utf-8").replace(REMOTE_IMAGES, local)
+
+
 def build() -> gr.Blocks:
-    with gr.Blocks(title="LUAR") as demo:
-        gr.Markdown(INTRO)
+    with gr.Blocks(title="LUAR", analytics_enabled=False) as demo:
+        readmes = {lang: path for lang, path in READMES.items() if path.exists()}
+        with gr.Row(elem_id="luar-header"):
+            gr.Markdown("# LUAR")
+            with gr.Row(elem_id="luar-actions"):
+                readme_btn = gr.Button("README", variant="secondary", size="md", visible=bool(readmes))
+                gr.DownloadButton(
+                    "Sample CSV", value=str(SAMPLE_CSV) if SAMPLE_CSV.exists() else None,
+                    variant="secondary", size="md", visible=SAMPLE_CSV.exists(),
+                )
+        gr.Markdown(TAGLINE, elem_id="luar-tagline")
+        with gr.Sidebar(label="README", open=False, position="right", width="min(760px, 92vw)") as manual:
+            with gr.Tabs():
+                for lang, path in readmes.items():
+                    with gr.Tab(lang):
+                        gr.Markdown(readme_markdown(path))
+        readme_btn.click(lambda: gr.Sidebar(open=True), None, manual)
         if not laya_installed():
             gr.Markdown(f"**The Laya model is not installed.** Install it with `{INSTALL_HINT}` and restart LUAR.")
         source = gr.State()
@@ -214,7 +259,7 @@ def build() -> gr.Blocks:
                 gr.Markdown("### Preview")
                 preview = gr.Dataframe(interactive=False, max_height=260, wrap=True)
 
-        with gr.Group(elem_classes="luar-step"):
+        with gr.Column(elem_classes="luar-step"):
             gr.Markdown("### 2. What do you want to know about each row?")
             questions = gr.Dataframe(
                 headers=QUESTION_HEADERS,
@@ -266,7 +311,7 @@ def build() -> gr.Blocks:
 def launch(port: int = 7860, share: bool = False, open_browser: bool = True) -> None:
     build().launch(
         server_name="127.0.0.1", server_port=port, share=share, inbrowser=open_browser,
-        theme=THEME, css=CSS,
+        theme=THEME, css=CSS, allowed_paths=[str(IMAGES)],
     )
 
 

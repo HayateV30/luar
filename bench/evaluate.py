@@ -1,6 +1,6 @@
 """Evaluate LUAR's engines on public, human-labeled datasets.
 
-    python bench/evaluate.py --data-dir <folder> --engines laya lmstudio --rows 300
+    python bench/evaluate.py --data-dir <folder> --rows 300
 
 Downloads the datasets into --data-dir (they are not redistributed with LUAR), draws a fixed,
 class-balanced sample, runs LUAR exactly as a user would (run_file on a CSV with expected_*
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from luar.backends import make_backend
+from luar.backends import ENGINES, make_backend
 from luar.engine import confidence_col, normalize_label, run_file
 from luar.questions import parse_questions
 
@@ -172,7 +172,7 @@ def to_markdown(runs: list[dict]) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", required=True, type=Path)
-    ap.add_argument("--engines", nargs="+", default=["laya"], choices=["laya", "lmstudio"])
+    ap.add_argument("--engines", nargs="+", default=["laya"], choices=ENGINES)
     ap.add_argument("--datasets", nargs="+", default=["b2w", "ag_news"], choices=["b2w", "ag_news"])
     ap.add_argument("--rows", type=int, default=300)
     args = ap.parse_args()

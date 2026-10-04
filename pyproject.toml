@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 authors = [{ name = "Alexandre Alves", email = "alexxalvess@gmail.com" }]
 requires-python = ">=3.10"
-keywords = ["classification", "spreadsheet", "csv", "local-ai", "laya", "lm-studio", "gradio"]
+keywords = ["classification", "spreadsheet", "csv", "local-ai", "laya", "gradio"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",

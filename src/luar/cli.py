@@ -1,4 +1,4 @@
-"""Command line: `luar run`, `luar columns`, `luar ui`."""
+"""Command line: `luar run`, `luar columns`, `luar download`, `luar ui`."""
 from __future__ import annotations
 
 import argparse
@@ -25,20 +25,13 @@ def _cmd_run(args) -> int:
     from .engine import run_file
     from .questions import load_questions
 
-    from .backends import default_engine
-
     questions = load_questions(args.questions)
-    args.engine = args.engine or default_engine()
-    if args.engine == "laya":
-        backend = make_backend("laya", checkpoint=args.checkpoint, device=args.device)
-    else:
-        backend = make_backend("lmstudio", model=args.model, base_url=args.lmstudio_url)
+    backend = make_backend("laya", checkpoint=args.checkpoint, device=args.device)
 
     def progress(done, total):
         print(f"\r  {done}/{total} rows", end="", file=sys.stderr, flush=True)
 
-    print(f"Engine: {backend.name}" + (" (the first run downloads the model)" if args.engine == "laya" else ""),
-          file=sys.stderr)
+    print(f"Engine: {backend.name}", file=sys.stderr)
     result = run_file(
         args.file, questions, args.columns, backend,
         threshold=args.threshold, out_dir=args.out_dir, sheet=args.sheet, progress=progress,
@@ -48,6 +41,16 @@ def _cmd_run(args) -> int:
     print(f"Done: {len(result.table)} rows, {flagged} to review.")
     print(f"  Result:  {result.table_path}")
     print(f"  Summary: {result.summary_path}")
+    return 0
+
+
+def _cmd_download(args) -> int:
+    from .backends.laya_backend import download_checkpoints
+
+    print("Downloading the Laya models (about 1.5 GB, only once)…", file=sys.stderr)
+    for folder in download_checkpoints(checkpoints=tuple(args.checkpoints)):
+        print(f"  {folder}")
+    print("Done: LUAR now runs offline.")
     return 0
 
 
@@ -73,19 +76,21 @@ def main(argv: list[str] | None = None) -> int:
                    help=f"confidence below this marks the row for review (default {DEFAULT_THRESHOLD})")
     p.add_argument("-o", "--out-dir", help="output folder (default: next to the file)")
     p.add_argument("--sheet", help="Excel sheet name (default: first)")
-    p.add_argument("-e", "--engine", choices=["laya", "lmstudio"],
-                   help="decision engine (default: laya if installed, otherwise lmstudio)")
     p.add_argument("--checkpoint", default="auto", choices=["auto", "multilingual", "english", "typed-decisions"],
-                   help="laya: model variant (default: auto, by the file's language)")
-    p.add_argument("--device", help="laya: cpu or cuda (default: automatic)")
-    p.add_argument("--model", help="lmstudio: model id (default: the first loaded model)")
-    p.add_argument("--lmstudio-url", help="lmstudio: server URL (default: $LUAR_LMSTUDIO_URL or http://localhost:1234/v1)")
+                   help="Laya model variant (default: auto, by the file's language)")
+    p.add_argument("--device", help="cpu or cuda (default: automatic)")
     p.set_defaults(func=_cmd_run)
 
     p = sub.add_parser("columns", help="list a file's columns with a sample value")
     p.add_argument("file")
     p.add_argument("--sheet")
     p.set_defaults(func=_cmd_columns)
+
+    p = sub.add_parser("download", help="fetch the Laya models now, so LUAR works offline afterwards")
+    p.add_argument("checkpoints", nargs="*", default=["multilingual", "english"],
+                   choices=["multilingual", "english", "typed-decisions"],
+                   help="which models (default: multilingual and english, the ones `auto` picks from)")
+    p.set_defaults(func=_cmd_download)
 
     p = sub.add_parser("ui", help="open the web interface (local only)")
     p.add_argument("--port", type=int, default=7860)
