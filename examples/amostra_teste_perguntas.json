@@ -1,0 +1,27 @@
+[
+  {
+    "id": "assunto",
+    "type": "choice",
+    "question": "Sobre o que é principalmente esta mensagem?",
+    "options": {
+      "entrega": "frete, atraso, transportadora, rastreio, endereço, estado do pacote",
+      "produto": "qualidade, defeito, funcionamento, tamanho do item",
+      "atendimento": "suporte, trocas, cancelamento, como a loja tratou o cliente",
+      "preco": "valor, custo-benefício, cobranças, cupom, desconto"
+    }
+  },
+  {
+    "id": "sentimento",
+    "type": "choice",
+    "question": "Qual é o sentimento geral do cliente nesta mensagem?",
+    "options": {
+      "positivo": "satisfeito, elogio, ou um problema pequeno que não o incomodou",
+      "negativo": "insatisfeito, reclamação, problema"
+    }
+  },
+  {
+    "id": "quer_reembolso",
+    "type": "noul",
+    "question": "O cliente pede o dinheiro de volta, estorno ou reembolso?"
+  }
+]

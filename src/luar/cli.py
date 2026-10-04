@@ -44,11 +44,14 @@ def _cmd_run(args) -> int:
     return 0
 
 
+DOWNLOAD_DEFAULT = ("multilingual", "english")  # the two checkpoints `auto` picks from
+
+
 def _cmd_download(args) -> int:
     from .backends.laya_backend import download_checkpoints
 
     print("Downloading the Laya models (about 1.5 GB, only once)…", file=sys.stderr)
-    for folder in download_checkpoints(checkpoints=tuple(args.checkpoints)):
+    for folder in download_checkpoints(checkpoints=tuple(args.checkpoints or DOWNLOAD_DEFAULT)):
         print(f"  {folder}")
     print("Done: LUAR now runs offline.")
     return 0
@@ -87,7 +90,8 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=_cmd_columns)
 
     p = sub.add_parser("download", help="fetch the Laya models now, so LUAR works offline afterwards")
-    p.add_argument("checkpoints", nargs="*", default=["multilingual", "english"],
+    # no list default: before Python 3.14, argparse checks a list default against `choices` as one value
+    p.add_argument("checkpoints", nargs="*",
                    choices=["multilingual", "english", "typed-decisions"],
                    help="which models (default: multilingual and english, the ones `auto` picks from)")
     p.set_defaults(func=_cmd_download)

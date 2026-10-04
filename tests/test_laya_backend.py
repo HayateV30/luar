@@ -76,3 +76,15 @@ def test_missing_laya_gives_install_hint(monkeypatch, capsys):
     code = cli_main(["run", str(EXAMPLES / "reviews.csv"), "-q", str(EXAMPLES / "reviews_questions.json"),
                      "-c", "review"])
     assert code == 2 and "pip install" in capsys.readouterr().err
+
+
+def test_download_command(monkeypatch):
+    """`luar download` with no argument is what the manual tells people to run."""
+    import luar.backends.laya_backend as laya_backend
+    from luar.cli import main as cli_main
+
+    asked = []
+    monkeypatch.setattr(laya_backend, "download_checkpoints", lambda checkpoints: asked.append(checkpoints) or [])
+    assert cli_main(["download"]) == 0
+    assert cli_main(["download", "english"]) == 0
+    assert asked == [("multilingual", "english"), ("english",)]

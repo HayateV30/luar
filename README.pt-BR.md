@@ -135,8 +135,9 @@ Arraste o arquivo para a caixa **CSV or XLSX** (ou clique nela para escolher o a
 **Só quer experimentar?** Se instalou a partir do repositório (veja a
 [seção 11](#11-projetos-relacionados-como-contribuir-e-licença)), escolha um exemplo em
 **…or try an example**, ou clique em **Sample CSV**, no alto da página, para baixar uma planilha de
-teste com 20 mensagens fictícias de clientes (o botão **README**, ao lado, abre este manual). Se
-não, baixe
+teste com 20 mensagens fictícias de clientes (o botão **README**, ao lado, abre este manual). Para
+rodá-la já com perguntas prontas, escolha **Amostra de teste (Sample CSV)** no mesmo menu de
+exemplos. Se não, baixe
 [avaliacoes.csv](https://raw.githubusercontent.com/HayateV30/luar/main/examples/avaliacoes.csv) e
 [avaliacoes_perguntas.json](https://raw.githubusercontent.com/HayateV30/luar/main/examples/avaliacoes_perguntas.json)
 e carregue-os como nos passos 2 e 3.
