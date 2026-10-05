@@ -27,6 +27,33 @@ def laya_installed() -> bool:
     return importlib.util.find_spec("laya") is not None
 
 
+class LibraryBlockedError(BackendError):
+    pass
+
+
+WINERROR_APP_CONTROL = 4551  # "An Application Control policy has blocked this file"
+
+
+def is_library_error(e: OSError) -> bool:
+    """A DLL that failed to load (Windows), not a missing model file or a network error."""
+    text = str(e)
+    return getattr(e, "winerror", None) is not None and (".dll" in text.lower() or "WinError" in text)
+
+
+def library_error(e: OSError) -> LibraryBlockedError:
+    """Explain a PyTorch DLL that failed to load (Laya imports PyTorch on first use)."""
+    if getattr(e, "winerror", None) == WINERROR_APP_CONTROL or f"WinError {WINERROR_APP_CONTROL}" in str(e):
+        return LibraryBlockedError(
+            "Windows blocked one of PyTorch's files (Application Control, WinError 4551), so the Laya "
+            "engine could not start. This can happen just once: close LUAR and open it again. If it keeps "
+            f"happening, ask whoever manages this computer to allow PyTorch's files. Details: {e}"
+        )
+    return LibraryBlockedError(
+        "PyTorch, which the Laya engine needs, could not be loaded. Close LUAR and open it again; if it "
+        f"keeps happening, reinstall it with: pip install --force-reinstall torch. Details: {e}"
+    )
+
+
 def import_laya():
     """Import the `laya` package (a LUAR dependency), or explain how to repair a broken install."""
     try:
@@ -35,6 +62,10 @@ def import_laya():
         raise LayaNotInstalledError(
             f"The Laya engine could not be loaded. Reinstall it with: {INSTALL_HINT}"
         ) from e
+    except OSError as e:
+        if is_library_error(e):  # a PyTorch DLL refused to load
+            raise library_error(e) from e
+        raise
     return laya
 
 
@@ -136,7 +167,12 @@ class LayaBackend:
             if subfolder:
                 kwargs["subfolder"] = subfolder
             # once downloaded, load from disk: laya.load(repo) asks the Hub for updates on every run
-            self._agent = laya.load(local_checkpoint(self.repo, subfolder) or self.repo, **kwargs)
+            try:
+                self._agent = laya.load(local_checkpoint(self.repo, subfolder) or self.repo, **kwargs)
+            except OSError as e:
+                if is_library_error(e):  # laya imports PyTorch lazily, here
+                    raise library_error(e) from e
+                raise
         return self._agent
 
     def decide(

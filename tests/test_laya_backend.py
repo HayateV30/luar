@@ -88,3 +88,34 @@ def test_download_command(monkeypatch):
     assert cli_main(["download"]) == 0
     assert cli_main(["download", "english"]) == 0
     assert asked == [("multilingual", "english"), ("english",)]
+
+
+def _blocked_dll():
+    e = OSError(1, "Uma política de Controle de Aplicativo bloqueou este arquivo. "
+                   r'Error loading "C:\py\torch\lib\shm.dll" or one of its dependencies.')
+    e.winerror = 4551
+    return e
+
+
+def test_blocked_pytorch_dll_explains_what_to_do(monkeypatch):
+    import laya
+
+    from luar.backends.laya_backend import LibraryBlockedError
+
+    def blocked(*a, **k):
+        raise _blocked_dll()
+
+    monkeypatch.setattr(laya, "load", blocked)
+    with pytest.raises(LibraryBlockedError, match="Application Control.*close LUAR and open it again"):
+        LayaBackend(checkpoint="multilingual").decide(["t"], load_questions(EXAMPLES / "reviews_questions.json"))
+
+
+def test_other_os_errors_are_not_called_dll_problems(monkeypatch):
+    import laya
+
+    def missing(*a, **k):
+        raise FileNotFoundError("model.safetensors not found")
+
+    monkeypatch.setattr(laya, "load", missing)
+    with pytest.raises(FileNotFoundError):
+        LayaBackend(checkpoint="multilingual").decide(["t"], load_questions(EXAMPLES / "reviews_questions.json"))
