@@ -68,3 +68,14 @@ def test_background_has_four_aligned_crosses_shrinking_to_the_back():
     # never in the way: behind the page, not clickable, still when the OS asks for less motion
     assert "pointer-events: none" in CSS and "prefers-reduced-motion" in CSS
     assert "body:has(.pending)" in CSS  # paused while the app works
+
+
+def test_every_step_has_a_help_box():
+    from luar.app import TIPS, heading
+
+    html = heading("1. Spreadsheet", TIPS["sheet"])
+    assert html.startswith("### 1. Spreadsheet ")
+    # what Gradio's Markdown sanitizer keeps: class, tabindex (keyboard focus) and role
+    assert 'class="luar-help" tabindex="0"' in html and 'role="tooltip"' in html
+    assert set(TIPS) == {"sheet", "preview", "questions", "run", "result"}
+    assert all("<" not in tip and ">" not in tip for tip in TIPS.values())

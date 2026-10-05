@@ -108,6 +108,9 @@ nenhuma conexão externa: nem a interface, nem o modelo.
 
 ## 4. Primeiro uso, passo a passo
 
+> **Dica:** cada etapa da interface tem um ícone **ⓘ** à direita do título. Passe o mouse sobre ele (ou
+> chegue nele com a tecla Tab) para ver uma explicação curta daquela etapa. A interface é em inglês.
+
 ### Passo 1: abra a LUAR
 
 ```bash

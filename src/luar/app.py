@@ -103,6 +103,24 @@ CSS = """
   #luar-header > :first-child, #luar-actions { grid-column: 1; justify-self: center; justify-content: center; }
 }
 .luar-step h3 { margin-top: 8px; }
+/* help icon (i) at the right of a step title; its box opens on hover or keyboard focus */
+h3:has(.luar-help) { display: flex; align-items: center; gap: 8px; }
+.block:has(.luar-help) { overflow: visible !important; }  /* Gradio's block would clip the box */
+.luar-help { position: relative; margin-left: auto; flex: 0 0 auto; width: 20px; height: 20px;
+  border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font: 600 12px/1 Georgia, serif; font-style: italic; cursor: help;
+  background: var(--neutral-700); color: white; }
+.dark .luar-help { background: var(--neutral-300); color: var(--neutral-900); }
+.luar-tip { visibility: hidden; opacity: 0; position: absolute; top: calc(100% + 10px); right: -6px;
+  z-index: 50; width: min(340px, 80vw); padding: 12px 14px; border-radius: 8px;
+  font: normal 400 14px/1.55 "Inter", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  letter-spacing: normal; text-align: left; white-space: normal;
+  color: var(--body-text-color); background: var(--block-background-fill);
+  border: 1px solid var(--border-color-primary); box-shadow: 0 8px 24px rgb(15 23 42 / 0.14);
+  transition: opacity 0.12s ease; pointer-events: none; }
+.luar-help:hover .luar-tip, .luar-help:focus .luar-tip, .luar-help:focus-within .luar-tip {
+  visibility: visible; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .luar-tip { transition: none; } }
 /* background: four crosses of light points in a row along the X axis, turning together around it
    (inspired by an old TV intro); behind everything, never clickable, still when motion is reduced */
 #luar-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; perspective: 900px;
@@ -127,6 +145,31 @@ body:has(.pending) #luar-bg .spin { animation-play-state: paused !important; }
 button, [role="button"], label:has(input) { cursor: pointer; }
 :focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 """
+
+# Help boxes: an (i) icon at the right of each step title; the box opens on hover and on keyboard focus
+TIPS = {
+    "sheet": "Drop a .csv or .xlsx file (up to 50 MB and 20,000 rows). LUAR works on a copy: your file is "
+             "never changed. Then tick the column(s) with the text the model should read. Columns named "
+             "expected_... hold answers you already know; they are used to measure accuracy and are never read.",
+    "preview": "The first rows of your file, to check it was read correctly: columns, accents and separator.",
+    "questions": "Each row is one question. id: a short name (letters, numbers, _) that becomes the new "
+                 "column. type: choice picks one option, noul answers yes/no, score places the row on a "
+                 "scale (experimental). question: plain language. options: separated by ; with an optional "
+                 "description after : (descriptions help a lot).",
+    "run": "Confidence threshold: answers below it mark the row needs_review. Laya model variant: auto uses "
+           "the English model for English files and the multilingual one for the rest. The first run "
+           "downloads the model; later runs work offline.",
+    "result": "Download the copy of your spreadsheet with the new columns, and the summary (.md). Rows with "
+              "needs_review = yes deserve a human look: low confidence, possible manipulation or empty "
+              "text. These files are deleted when LUAR closes, so download them first.",
+}
+
+
+def heading(title: str, tip: str) -> str:
+    """A step title with its help icon (kept by Gradio's Markdown sanitizer: class, tabindex, role)."""
+    return (f'### {title} <span class="luar-help" tabindex="0">i'
+            f'<span class="luar-tip" role="tooltip">{tip}</span></span>')
+
 
 QUESTION_HELP = """
 **Question types:** `choice` picks one option · `noul` answers yes/no · `score` places the row on an
@@ -369,7 +412,7 @@ def build() -> gr.Blocks:
         source = gr.State()
         with gr.Row(equal_height=False):
             with gr.Column(scale=1, elem_classes="luar-step"):
-                gr.Markdown("### 1. Spreadsheet")
+                gr.Markdown(heading("1. Spreadsheet", TIPS["sheet"]))
                 upload = gr.File(label="CSV or XLSX", file_types=[".csv", ".xlsx", ".xlsm", ".txt"])
                 status = gr.Markdown()
                 columns = gr.CheckboxGroup(label="Column(s) the model should read", choices=[])
@@ -382,11 +425,11 @@ def build() -> gr.Blocks:
                     visible=EXAMPLES.exists(),  # examples ship with the repo, not the wheel
                 )
             with gr.Column(scale=2, elem_classes="luar-step"):
-                gr.Markdown("### Preview")
+                gr.Markdown(heading("Preview", TIPS["preview"]))
                 preview = gr.Dataframe(interactive=False, max_height=260, wrap=True)
 
         with gr.Column(elem_classes="luar-step"):
-            gr.Markdown("### 2. What do you want to know about each row?")
+            gr.Markdown(heading("2. What do you want to know about each row?", TIPS["questions"]))
             questions = gr.Dataframe(
                 headers=QUESTION_HEADERS,
                 datatype=["str", "str", "str", "str"],
@@ -405,7 +448,7 @@ def build() -> gr.Blocks:
             q_save = gr.Button("Save questions as .json", variant="secondary", scale=0)
             q_file = gr.File(label="Questions file", interactive=False, scale=1)
 
-        gr.Markdown("### 3. Run", elem_classes="luar-step")
+        gr.Markdown(heading("3. Run", TIPS["run"]), elem_classes="luar-step")
         with gr.Row():
             threshold = gr.Slider(
                 0.5, 0.95, value=DEFAULT_THRESHOLD, step=0.05, label="Confidence threshold",
@@ -417,7 +460,7 @@ def build() -> gr.Blocks:
             )
         run = gr.Button("Run", variant="primary", size="lg", elem_id="luar-run")
 
-        gr.Markdown("### Result", elem_classes="luar-step")
+        gr.Markdown(heading("Result", TIPS["result"]), elem_classes="luar-step")
         downloads = gr.File(label="Download (result copy + summary)", file_count="multiple", interactive=False)
         with gr.Tabs():
             with gr.Tab("Summary"):

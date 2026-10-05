@@ -105,6 +105,9 @@ outside connection: neither the interface nor the model.
 
 ## 4. Your first run, step by step
 
+> **Tip:** each step of the interface has an **ⓘ** icon at the right of its title. Hover it (or reach it
+> with the Tab key) for a short explanation of that step.
+
 ### Step 1: open LUAR
 
 ```bash
