@@ -1,3 +1,3 @@
 * text=auto eol=lf
-# cmd.exe expects Windows line endings in batch files
-*.bat text eol=crlf
+# cmd.exe expects Windows line endings; stored as-is so the raw download has them too
+*.bat -text
