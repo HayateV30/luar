@@ -109,7 +109,15 @@ nenhuma conexão externa: nem a interface, nem o modelo.
 ## 4. Primeiro uso, passo a passo
 
 > **Dica:** cada etapa da interface tem um ícone **ⓘ** à direita do título. Passe o mouse sobre ele (ou
-> chegue nele com a tecla Tab) para ver uma explicação curta daquela etapa. A interface é em inglês.
+> chegue nele com a tecla Tab) para ver uma explicação curta daquela etapa.
+>
+> **Idioma:** a interface está em português e em inglês. Na primeira vez, ela segue o idioma do seu
+> navegador; o botão **English** / **PT-BR** (com a bandeira), no canto superior esquerdo da página,
+> troca todos os textos de uma vez (o arquivo, as perguntas e as escolhas continuam como estavam), e
+> o navegador lembra a escolha.
+> O resumo sai no idioma ativo quando você clica em **Executar**; a planilha de resultado é a mesma
+> nos dois idiomas. Este manual usa os nomes da interface em português; as imagens mostram a
+> interface em inglês.
 
 ### Passo 1: abra a LUAR
 
@@ -130,24 +138,24 @@ navegador. Deixe essa janela aberta enquanto trabalha e feche-a para encerrar a 
 
 ### Passo 2: carregue a planilha
 
-Arraste o arquivo para a caixa **CSV or XLSX** (ou clique nela para escolher o arquivo).
+Arraste o arquivo para a caixa **CSV ou XLSX** (ou clique nela para escolher o arquivo).
 
 ![Carregando a planilha](https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/1-spreadsheet.png)
 
 - A LUAR mostra quantas linhas e colunas encontrou e uma **prévia** das primeiras linhas.
 - CSVs exportados pelo Excel em português (separador `;` e acentos) são detectados automaticamente.
 - Em arquivos do Excel, é usada a **primeira aba**.
-- Em **Column(s) the model should read**, marque a coluna com o texto. A LUAR já sugere a coluna com
+- Em **Coluna(s) que o modelo deve ler**, marque a coluna com o texto. A LUAR já sugere a coluna com
   os textos mais longos. Se você marcar várias (por exemplo *título* e *descrição*), elas são lidas
   juntas.
 
 **Só quer experimentar?** Se instalou a partir do repositório (veja a
 [seção 12](#12-projetos-relacionados-como-contribuir-e-licença)), escolha um exemplo em
-**…or try an example**, ou clique em **Sample CSV**, no alto da página, para baixar uma planilha de
-teste com 20 mensagens fictícias de clientes, e em **Sample JSON** para baixar as perguntas que
-combinam com ela (carregue-as em **Load questions (.json)**, no passo 3). O botão **README**, ao
-lado, abre este manual. Para carregar as duas coisas de uma vez, escolha **Amostra de teste (Sample
-CSV)** no menu de exemplos. Se não, baixe
+**…ou experimente um exemplo**, ou clique em **CSV de exemplo**, no alto da página, para baixar uma planilha de
+teste com 20 mensagens fictícias de clientes, e em **JSON de exemplo** para baixar as perguntas que
+combinam com ela (carregue-as em **Carregar perguntas (.json)**, no passo 3). O botão **Manual**, ao
+lado, abre este manual. Para carregar as duas coisas de uma vez, escolha **Amostra de teste (CSV de
+exemplo)** no menu de exemplos. Se não, baixe
 [avaliacoes.csv](https://raw.githubusercontent.com/HayateV30/luar/main/examples/avaliacoes.csv) e
 [avaliacoes_perguntas.json](https://raw.githubusercontent.com/HayateV30/luar/main/examples/avaliacoes_perguntas.json)
 e carregue-os como nos passos 2 e 3.
@@ -161,15 +169,15 @@ Cada linha da tabela de perguntas é uma pergunta:
 | Coluna | O que escrever | Exemplo |
 |---|---|---|
 | **id** | Um nome curto para a pergunta. Vira o nome da coluna nova. Só letras, números e `_`, sem espaços. | `assunto` |
-| **type** | `choice`, `noul` ou `score` (veja a [seção 5](#5-como-escrever-boas-perguntas)). | `choice` |
-| **question** | A pergunta, em linguagem simples. | `Sobre o que é principalmente esta avaliação?` |
-| **options** | As respostas possíveis, separadas por `;`. Se quiser, acrescente uma descrição curta depois de `:`. Deixe vazio para `noul`. | `entrega: frete, atraso; produto: defeito, qualidade; preco` |
+| **tipo** | `choice`, `noul` ou `score` (veja a [seção 5](#5-como-escrever-boas-perguntas)). | `choice` |
+| **pergunta** | A pergunta, em linguagem simples. | `Sobre o que é principalmente esta avaliação?` |
+| **opções** | As respostas possíveis, separadas por `;`. Se quiser, acrescente uma descrição curta depois de `:`. Deixe vazio para `noul`. | `entrega: frete, atraso; produto: defeito, qualidade; preco` |
 
 Clique numa célula para editar e use os controles de linha da tabela para acrescentar ou remover
 perguntas.
 
-**Dica:** as perguntas podem ser salvas e reaproveitadas. **Save questions as .json** baixa a
-tabela; **Load questions (.json)** carrega de volta. Escrever as perguntas uma vez num arquivo
+**Dica:** as perguntas podem ser salvas e reaproveitadas. **Salvar perguntas em .json** baixa a
+tabela; **Carregar perguntas (.json)** carrega de volta. Escrever as perguntas uma vez num arquivo
 `.json` costuma ser o jeito mais fácil de manter muitas delas (formato na
 [seção 5](#formato-do-arquivo-de-perguntas)).
 
@@ -177,25 +185,25 @@ tabela; **Load questions (.json)** carrega de volta. Escrever as perguntas uma v
 
 ![Opções de execução](https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/3-run.png)
 
-- **Confidence threshold** (limite de confiança, padrão `0,7`): toda resposta abaixo dele é marcada
+- **Limite de confiança** (padrão `0,7`): toda resposta abaixo dele é marcada
   em `needs_review`. Aumente para revisar mais linhas, diminua para revisar menos.
-- **Laya model variant** (variante do modelo): deixe em `auto`. Ele usa o modelo inglês para
+- **Variante do modelo Laya**: deixe em `auto`. Ele usa o modelo inglês para
   arquivos em inglês e o multilíngue para os demais.
 
-Clique em **Run**. Se você não rodou `luar download` na instalação, na primeira vez a Laya baixa o
+Clique em **Executar**. Se você não rodou `luar download` na instalação, na primeira vez a Laya baixa o
 modelo, o que leva alguns minutos; depois, as execuções começam em segundos.
 
 ### Passo 5: baixe os resultados
 
 ![Resultados](https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/4-result.png)
 
-Em **Result** aparecem dois arquivos para baixar:
+Em **Resultado** aparecem dois arquivos para baixar:
 
 - **`<seu arquivo>_luar.csv` ou `.xlsx`**: a sua planilha com as colunas novas.
-- **`<seu arquivo>_luar_summary.md`**: o relatório (também aparece na página, na aba **Summary**).
+- **`<seu arquivo>_luar_summary.md`**: o relatório (também aparece na página, na aba **Resumo**).
   `.md` é texto simples e abre em qualquer editor de texto.
 
-A aba **Table** mostra a planilha resultante na própria página.
+A aba **Tabela** mostra a planilha resultante na própria página.
 
 ---
 
@@ -243,7 +251,9 @@ A qualidade das respostas depende principalmente de como as perguntas são escri
 
 ### Formato do arquivo de perguntas
 
-Um arquivo de perguntas é uma lista em formato JSON. Este é o arquivo do exemplo em português:
+Um arquivo de perguntas é uma lista em formato JSON. Os nomes dos campos são sempre em inglês, em
+qualquer idioma da interface: `id`, `type` (tipo), `question` (pergunta) e `options` (opções). Este é
+o arquivo do exemplo em português:
 
 ```json
 [
@@ -324,10 +334,10 @@ Antes de usar a LUAR num arquivo grande, meça o acerto numa amostra cujas respo
    - Nas perguntas `noul`, valem `sim`/`não`, `yes`/`no`, `true`/`false` e `1`/`0`.
    - Linhas deixadas em branco na coluna `expected_` simplesmente não entram na conta.
 3. **Rode a LUAR** nesse arquivo. O relatório passa a mostrar, para cada pergunta, uma linha como
-   **Accuracy against `expected_assunto`: 9/10 (90%)**.
+   **Acurácia em relação a `expected_assunto`: 9/10 (90%)**.
 4. Se o acerto estiver baixo, **melhore as perguntas** (seção 5): descreva melhor as opções, divida
    perguntas que misturam duas coisas, troque `score` por `choice` ou `noul`, ou teste a outra
-   variante do modelo (**Laya model variant**). Rode de novo até ficar satisfeito. Depois, rode o
+   variante do modelo (**Variante do modelo Laya**). Rode de novo até ficar satisfeito. Depois, rode o
    arquivo completo.
 
 As colunas `expected_` nunca são mostradas ao modelo, então não "entregam" as respostas.

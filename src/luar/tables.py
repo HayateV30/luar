@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from .i18n import t
+
 ENCODINGS = ("utf-8-sig", "cp1252", "latin-1")
 EXCEL_SUFFIXES = (".xlsx", ".xlsm")
 # an .xlsx is a zip: a small file can unpack to gigabytes ("zip bomb") and freeze the machine
@@ -47,7 +49,7 @@ def read_table(path: str | Path, sheet: str | int | None = None) -> tuple[pd.Dat
         df = sheets[name]
         return df, TableInfo(path=path, kind="excel", sheet=name)
     if suffix == ".xls":
-        raise ValueError("Old .xls files are not supported; save the file as .xlsx or .csv.")
+        raise ValueError(t("t_xls"))
 
     raw = path.read_bytes()
     for enc in ENCODINGS:
@@ -63,11 +65,7 @@ def read_table(path: str | Path, sheet: str | int | None = None) -> tuple[pd.Dat
     header = len(next(csv.reader(io.StringIO(text), delimiter=sep), []))
     if any(width > header for width in widths):
         bad = next(i for i, row in enumerate(csv.reader(io.StringIO(text), delimiter=sep), 1) if len(row) > header)
-        raise ValueError(
-            f"Line {bad} of this file has more fields than the header ({header}), probably a "
-            f"'{sep}' inside a text without quotes. Save the file again from Excel (it adds the quotes), "
-            "or put that text between double quotes."
-        )
+        raise ValueError(t("t_extra_fields", line=bad, header=header, sep=sep))
     df = pd.read_csv(path, sep=sep, encoding=enc, dtype=str, keep_default_na=False, index_col=False)
     return df, TableInfo(path=path, kind="csv", sep=sep, encoding=enc)
 
@@ -77,12 +75,9 @@ def _check_excel(path: Path) -> None:
         with zipfile.ZipFile(path) as z:
             unpacked = sum(info.file_size for info in z.infolist())
     except zipfile.BadZipFile as e:
-        raise ValueError("This is not a valid Excel file (.xlsx). Save it again from Excel, or as .csv.") from e
+        raise ValueError(t("t_bad_xlsx")) from e
     if unpacked > MAX_XLSX_UNPACKED:
-        raise ValueError(
-            f"This Excel file unpacks to {unpacked // 2**20} MB, more than LUAR accepts "
-            f"({MAX_XLSX_UNPACKED // 2**20} MB). Split it, or save the columns you need as .csv."
-        )
+        raise ValueError(t("t_xlsx_too_big", size=unpacked // 2**20, max=MAX_XLSX_UNPACKED // 2**20))
 
 
 def free_path(path: Path) -> Path:
@@ -110,7 +105,7 @@ def output_paths(info: TableInfo, out_dir: str | Path | None = None) -> tuple[Pa
 
 def write_table(df: pd.DataFrame, path: Path, info: TableInfo) -> Path:
     if path.exists():
-        raise FileExistsError(f"Refusing to overwrite {path}")
+        raise FileExistsError(t("t_overwrite", path=path))
     if info.kind == "excel":
         sheet = info.sheet or "Sheet1"
         with pd.ExcelWriter(path, engine="openpyxl") as writer:

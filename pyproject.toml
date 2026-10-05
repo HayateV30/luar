@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "luar"
-version = "0.5.0"
+version = "0.6.0"
 description = "LUAR (Local Utility for Automated Reviews): catalog spreadsheet rows with a local decision model."
 readme = "README.md"
 license = "MIT"
@@ -45,6 +45,9 @@ luar = "luar.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+luar = ["assets/*.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

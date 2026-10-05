@@ -20,6 +20,7 @@ import pandas as pd
 from .backends.base import BackendError
 from .backends.laya_backend import INSTALL_HINT, LayaBackend, laya_installed, pick_checkpoint
 from .engine import DEFAULT_THRESHOLD, EXPECTED_PREFIX, REVIEW_COL, build_texts, classify, save_result
+from .i18n import TEXTS, language, normalize, num, rows, t
 from .safety import describe_sensitive, scan_sensitive
 from .questions import EXPERIMENTAL_TYPES, QuestionError, dump_questions, load_questions, parse_questions
 from .report import render_summary
@@ -28,13 +29,13 @@ from .tables import read_table
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples"
 # the manual and the sample ship with the repo, not the wheel: their buttons hide when missing
-READMES = {"Português": ROOT / "README.pt-BR.md", "English": ROOT / "README.md"}
+# (language code: tab name, file); the tab of the interface language opens first
+READMES = {"pt": ("Português", ROOT / "README.pt-BR.md"), "en": ("English", ROOT / "README.md")}
 SAMPLE_CSV = EXAMPLES / "amostra_teste.csv"
 SAMPLE_QUESTIONS = EXAMPLES / "amostra_teste_perguntas.json"  # the questions that go with the sample
 # the READMEs link their screenshots on GitHub (so PyPI shows them); the app serves the local copies
 IMAGES = ROOT / "docs" / "images"
 REMOTE_IMAGES = "https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/"
-QUESTION_HEADERS = ["id", "type", "question", "options"]
 PREVIEW_ROWS = 8
 # limits that keep a huge or hostile file from freezing the machine (the command line has no row limit)
 MAX_UPLOAD = "50mb"
@@ -45,10 +46,73 @@ WORK_DIR = Path(tempfile.gettempdir()) / "luar"
 STALE_AFTER = 24 * 3600
 _backends: dict[str, LayaBackend] = {}  # loaded models, reused between runs
 
-TAGLINE = """
-**Local Utility for Automated Reviews.** Drop a spreadsheet, say what you want to know about each row,
-and get a copy with the answers plus a summary. Everything runs on this computer, with the Laya model.
-"""
+# The language button: the browser remembers the choice; the first visit follows the browser's language.
+# Both run in the page only (no server round trip); changing the hidden language box re-labels the page.
+LANG_KEY = "luar-lang"
+# the button shows the flag of the language it switches to. Images, because Windows does not draw
+# flag emoji; PNG, because Gradio serves SVG files only as downloads (an SVG can carry scripts).
+# The .svg files next to them are the sources.
+FLAGS = {"en": Path(__file__).parent / "assets" / "flag-br.png",
+         "pt": Path(__file__).parent / "assets" / "flag-gb.png"}
+# Gradio's own words ("Drop File Here", the footer, number formats) follow the browser's language;
+# its page module exports changeLocale, so the button switches those too. Same module URL = same
+# instance, nothing is downloaded. If a Gradio update renames it, only Gradio's words stay as they were.
+_GRADIO_LOCALE_JS = """
+  document.documentElement.dataset.luarLang = LANG;  // Gradio's upload box and toasts, see gradio_words_css()
+  const ARIA = %s;
+  document.querySelectorAll('[data-testid="upload-text"]').forEach(
+    e => e.closest("button") && e.closest("button").setAttribute("aria-label", ARIA[LANG]));
+  try {
+    const urls = [...performance.getEntriesByType("resource").map(e => e.name),
+                  ...[...document.querySelectorAll("script[src], link[href]")].map(e => e.src || e.href)];
+    const core = urls.find(u => /\\/assets\\/core-[\\w-]+\\.js$/.test(u));
+    if (core) import(core).then(m => m.changeLocale && m.changeLocale(LANG === "pt" ? "pt-BR" : "en"))
+                          .catch(() => {});
+  } catch (e) {}
+""" % json.dumps({lang: TEXTS[lang]["upload_aria"] for lang in TEXTS}, ensure_ascii=False)
+
+
+def _css_text(text: str) -> str:
+    return text.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def gradio_words_css() -> str:
+    """Two of Gradio's own texts do not follow the language button: the upload box ("Drop File Here -
+    or - Click to Upload" is written once, in the browser's language) and the toast titles (always
+    the English type name, whatever title is passed). LUAR hides those words and writes its own;
+    until the page sets data-luar-lang (a moment after loading), Gradio's words show."""
+    on = "html[data-luar-lang]"
+    rules = [
+        f'{on} [data-testid="upload-text"] {{ font-size: 0 !important; }}',
+        f'{on} [data-testid="upload-text"] .or {{ display: none; }}',
+        f'{on} [data-testid="upload-text"]::after {{ white-space: pre; text-align: center; line-height: 1.6; '
+        'font-size: var(--text-lg); }',
+        f"{on} .toast-title {{ font-size: 0 !important; }}",
+        f"{on} .toast-title::before {{ font-size: 16px; line-height: 22.4px; }}",
+    ]
+    for lang, texts in TEXTS.items():
+        # "\A " is a line break; the space ends the escape (else "\AC" of "Click" is one hex code)
+        words = "\\A ".join(_css_text(texts[k]) for k in ("upload_drop", "upload_or", "upload_click"))
+        rules.append(f'html[data-luar-lang="{lang}"] [data-testid="upload-text"]::after {{ content: "{words}"; }}')
+        for kind in ("error", "warning", "info"):
+            rules.append(f'html[data-luar-lang="{lang}"] .toast-title.{kind}::before '
+                         f'{{ content: "{_css_text(texts["title_" + kind])}"; }}')
+    return "\n".join(rules) + "\n"
+
+
+LOAD_LANG_JS = f"""() => {{
+  let LANG = null;
+  try {{ LANG = localStorage.getItem("{LANG_KEY}"); }} catch (e) {{}}
+  LANG = (LANG || navigator.language || "en").toLowerCase().startsWith("pt") ? "pt" : "en";
+  {_GRADIO_LOCALE_JS}
+  return LANG;
+}}"""
+TOGGLE_LANG_JS = f"""(lang) => {{
+  const LANG = lang === "pt" ? "en" : "pt";
+  try {{ localStorage.setItem("{LANG_KEY}", LANG); }} catch (e) {{}}
+  {_GRADIO_LOCALE_JS}
+  return LANG;
+}}"""
 
 # Neutral slate palette: the only strong color is the dark primary button (AA contrast in both modes).
 THEME = gr.themes.Base(
@@ -90,9 +154,13 @@ THEME = gr.themes.Base(
 
 CSS = """
 .gradio-container { max-width: 1200px !important; margin: 0 auto; }
-/* header: title centered on the page, actions on the right of the same line */
+/* header: language button on the left, title centered on the page, actions on the right of the same line */
 #luar-header { display: grid !important; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
-#luar-header > :first-child { grid-column: 2; }
+#luar-lang { grid-column: 1; justify-self: start; flex: 0 0 auto !important; width: auto !important;
+  min-width: 0 !important; min-height: 40px; padding: 0 14px; white-space: nowrap; }
+#luar-lang img { width: auto !important; height: 14px !important; max-width: none !important;
+  border-radius: 2px; box-shadow: 0 0 0 1px rgb(15 23 42 / 0.15); }
+#luar-title { grid-column: 2; }
 #luar-header h1 { margin: 0; text-align: center; letter-spacing: 0.08em; }
 #luar-actions { grid-column: 3; justify-self: end; display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 8px; }
 #luar-actions > * { flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; }
@@ -100,7 +168,7 @@ CSS = """
 #luar-tagline { text-align: center; max-width: 72ch; margin: 0 auto; }
 @media (max-width: 640px) {
   #luar-header { grid-template-columns: 1fr; }
-  #luar-header > :first-child, #luar-actions { grid-column: 1; justify-self: center; justify-content: center; }
+  #luar-lang, #luar-title, #luar-actions { grid-column: 1; justify-self: center; justify-content: center; }
 }
 .luar-step h3 { margin-top: 8px; }
 /* help icon (i) at the right of a step title; its box opens on hover or keyboard focus */
@@ -146,22 +214,14 @@ button, [role="button"], label:has(input) { cursor: pointer; }
 :focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 """
 
-# Help boxes: an (i) icon at the right of each step title; the box opens on hover and on keyboard focus
-TIPS = {
-    "sheet": "Drop a .csv or .xlsx file (up to 50 MB and 20,000 rows). LUAR works on a copy: your file is "
-             "never changed. Then tick the column(s) with the text the model should read. Columns named "
-             "expected_... hold answers you already know; they are used to measure accuracy and are never read.",
-    "preview": "The first rows of your file, to check it was read correctly: columns, accents and separator.",
-    "questions": "Each row is one question. id: a short name (letters, numbers, _) that becomes the new "
-                 "column. type: choice picks one option, noul answers yes/no, score places the row on a "
-                 "scale (experimental). question: plain language. options: separated by ; with an optional "
-                 "description after : (descriptions help a lot).",
-    "run": "Confidence threshold: answers below it mark the row needs_review. Laya model variant: auto uses "
-           "the English model for English files and the multilingual one for the rest. The first run "
-           "downloads the model; later runs work offline.",
-    "result": "Download the copy of your spreadsheet with the new columns, and the summary (.md). Rows with "
-              "needs_review = yes deserve a human look: low confidence, possible manipulation or empty "
-              "text. These files are deleted when LUAR closes, so download them first.",
+# The five steps: (title key, help key). Each title has an (i) icon at its right; the help box opens
+# on hover and on keyboard focus
+STEPS = {
+    "sheet": ("step_sheet", "tip_sheet"),
+    "preview": ("step_preview", "tip_preview"),
+    "questions": ("step_questions", "tip_questions"),
+    "run": ("step_run", "tip_run"),
+    "result": ("step_result", "tip_result"),
 }
 
 
@@ -171,27 +231,31 @@ def heading(title: str, tip: str) -> str:
             f'<span class="luar-tip" role="tooltip">{tip}</span></span>')
 
 
-QUESTION_HELP = """
-**Question types:** `choice` picks one option · `noul` answers yes/no · `score` places the row on an
-ordered scale (*experimental*: the least reliable type in our tests).
-**Options:** separate with `;` and optionally add a description after `:`, e.g.
-`delivery: shipping, delays; product: defects, quality`. Up to 20 options; `noul` takes none.
-Add a column named `expected_<id>` to your file to measure accuracy on rows you already know.
-"""
+def step_heading(step: str) -> str:
+    title, tip = STEPS[step]
+    return heading(t(title), t(tip))
 
-NO_QUESTIONS = (
-    "There are no questions yet. In step 2, fill in at least the id and the question of one row, "
-    "or load a questions .json file in \"Load questions (.json)\"."
-)
-# only offered where the sample buttons and the examples menu exist (a repository checkout, not PyPI)
-SAMPLE_HINT = (
-    " Trying the Sample CSV? Download Sample JSON at the top of the page and load it there, or pick "
-    "\"Amostra de teste (Sample CSV)\" in \"…or try an example\" to load both at once."
-)
+
+def question_headers() -> list[str]:
+    return t("headers").split("|")
+
+
+def questions_frame(rows_: list[list[str]]) -> pd.DataFrame:
+    """The questions table with its headers in the interface language."""
+    return pd.DataFrame(rows_, columns=question_headers())
 
 
 def no_questions_message() -> str:
-    return NO_QUESTIONS + (SAMPLE_HINT if SAMPLE_QUESTIONS.exists() else "")
+    # the sample hint only where the sample buttons and the examples menu exist (a checkout, not PyPI)
+    return t("no_questions") + (t("sample_hint") if SAMPLE_QUESTIONS.exists() else "")
+
+
+def error(message: str) -> gr.Error:
+    return gr.Error(message, title=t("title_error"))
+
+
+def warning(message: str) -> None:
+    gr.Warning(message, title=t("title_warning"))
 
 
 def _questions_to_rows(questions) -> list[list[str]]:
@@ -203,7 +267,8 @@ def _questions_to_rows(questions) -> list[list[str]]:
 
 
 def _rows_to_questions(table) -> list:
-    df = table if isinstance(table, pd.DataFrame) else pd.DataFrame(table, columns=QUESTION_HEADERS)
+    # columns by position: the headers depend on the interface language
+    df = table if isinstance(table, pd.DataFrame) else pd.DataFrame(table)
     data = []
     for _, r in df.iterrows():
         values = ["" if pd.isna(v) else str(v).strip() for v in r.tolist()[:4]]
@@ -235,70 +300,99 @@ def clean_work_dir(all_of_it: bool = False) -> None:
             pass
 
 
-def on_file(file):
-    hidden = gr.update(visible=False, value=False)
-    if file is None:
-        return gr.update(choices=[], value=[]), None, "", None, hidden
-    try:
-        df, info = read_table(file)
-    except Exception as e:  # unreadable file: tell the user, keep the UI alive
-        raise gr.Error(f"Could not read this file: {e}") from e
-    if len(df) > MAX_ROWS:
-        raise gr.Error(
-            f"This file has {len(df):,} rows; the interface takes up to {MAX_ROWS:,} (about one row per "
-            "second with Laya). Split the file, or use the command line: luar run"
+def file_status(info: dict | None) -> str:
+    """The line under the upload, from what on_file found (kept so it can be shown in either language)."""
+    if not info:
+        return ""
+    cols = t("status_cols_one") if info["columns"] == 1 else t("status_cols_many", n=num(info["columns"]))
+    detail = (t("status_csv", sep=info["sep"], encoding=info["encoding"]) if info["kind"] == "csv"
+              else t("status_excel", sheet=info["sheet"]))
+    status = t("status", name=info["name"], rows=rows(info["rows"]), cols=cols, detail=detail)
+    if info["sensitive"]:
+        status += "\n\n" + t("status_sensitive", found=describe_sensitive(info["sensitive"]))
+    return status
+
+
+def on_file(file, lang="en"):
+    with language(lang):
+        hidden = gr.update(visible=False, value=False)
+        if file is None:
+            return gr.update(choices=[], value=[]), None, "", None, hidden, None
+        try:
+            df, info = read_table(file)
+        except Exception as e:  # unreadable file: tell the user, keep the UI alive
+            raise error(t("err_read", error=e)) from e
+        if len(df) > MAX_ROWS:
+            raise error(t("err_too_many_rows", rows=num(len(df)), max=num(MAX_ROWS)))
+        # expected_* columns hold known answers: never offer them as model input
+        readable = [c for c in df.columns if not str(c).startswith(EXPECTED_PREFIX)]
+        # suggest the column with the longest text on average
+        lengths = {c: df[c].astype(str).str.len().mean() for c in readable}
+        best = max(lengths, key=lengths.get) if lengths else None
+        sensitive = scan_sensitive(build_texts(df, readable)) if readable else None
+        found = {
+            "name": Path(file).name, "rows": len(df), "columns": len(df.columns), "kind": info.kind,
+            "sep": info.sep, "encoding": info.encoding, "sheet": info.sheet,
+            "sensitive": dict(sensitive or {}),
+        }
+        return (
+            gr.update(choices=readable, value=[best] if best else []),
+            df.head(PREVIEW_ROWS),
+            file_status(found),
+            file,
+            gr.update(visible=bool(sensitive), value=False),
+            found,
         )
-    # expected_* columns hold known answers: never offer them as model input
-    readable = [c for c in df.columns if not str(c).startswith(EXPECTED_PREFIX)]
-    # suggest the column with the longest text on average
-    lengths = {c: df[c].astype(str).str.len().mean() for c in readable}
-    best = max(lengths, key=lengths.get) if lengths else None
-    detail = f"separator `{info.sep}`, {info.encoding}" if info.kind == "csv" else f"sheet `{info.sheet}`"
-    status = f"**{Path(file).name}**: {len(df)} rows, {len(df.columns)} columns ({detail})."
-    sensitive = scan_sensitive(build_texts(df, readable)) if readable else None
-    if sensitive:
-        status += (f"\n\n**Personal data found:** {describe_sensitive(sensitive)}. LUAR will only read "
-                   "these columns if you confirm you are allowed to process this data.")
-    return (
-        gr.update(choices=readable, value=[best] if best else []),
-        df.head(PREVIEW_ROWS),
-        status,
-        file,
-        gr.update(visible=bool(sensitive), value=False),
-    )
 
 
-def on_load_questions(file):
-    if file is None:
-        return gr.update()
-    try:
-        return _questions_to_rows(load_questions(file))
-    except (QuestionError, json.JSONDecodeError) as e:
-        raise gr.Error(str(e)) from e
+def on_load_questions(file, lang="en"):
+    with language(lang):
+        if file is None:
+            return gr.update()
+        try:
+            return questions_frame(_questions_to_rows(load_questions(file)))
+        except json.JSONDecodeError as e:
+            raise error(t("bad_json", error=e)) from e
+        except QuestionError as e:
+            raise error(str(e)) from e
 
 
-def on_save_questions(table):
-    try:
-        questions = _rows_to_questions(table)
-    except QuestionError as e:
-        raise gr.Error(str(e)) from e
-    path = work_dir() / "questions.json"
-    path.write_text(dump_questions(questions), encoding="utf-8")
-    return path
+def on_save_questions(table, lang="en"):
+    with language(lang):
+        try:
+            questions = _rows_to_questions(table)
+        except QuestionError as e:
+            raise error(str(e)) from e
+        path = work_dir() / "questions.json"
+        path.write_text(dump_questions(questions), encoding="utf-8")
+        return path
 
 
+# id: (name key, data file, questions file)
 EXAMPLE_SETS = {
-    "English reviews": ("reviews.csv", "reviews_questions.json"),
-    "English reviews: severity (score)": ("reviews.csv", "reviews_severity_question.json"),
-    "Avaliações em português": ("avaliacoes.csv", "avaliacoes_perguntas.json"),
-    "Amostra de teste (Sample CSV)": ("amostra_teste.csv", "amostra_teste_perguntas.json"),
+    "reviews": ("ex_reviews", "reviews.csv", "reviews_questions.json"),
+    "severity": ("ex_severity", "reviews.csv", "reviews_severity_question.json"),
+    "avaliacoes": ("ex_avaliacoes", "avaliacoes.csv", "avaliacoes_perguntas.json"),
+    "sample": ("ex_sample", "amostra_teste.csv", "amostra_teste_perguntas.json"),
 }
 
 
-def on_example(name):
-    data, questions = EXAMPLE_SETS[name]
-    rows = _questions_to_rows(load_questions(EXAMPLES / questions))
-    return str(EXAMPLES / data), rows
+def example_choices() -> list[tuple[str, str]]:
+    return [(t(name), key) for key, (name, _, _) in EXAMPLE_SETS.items()]
+
+
+def on_example(key, lang="en"):
+    with language(lang):
+        _, data, questions = EXAMPLE_SETS[key]
+        rows_ = _questions_to_rows(load_questions(EXAMPLES / questions))
+        return str(EXAMPLES / data), questions_frame(rows_)
+
+
+CHECKPOINT_NAMES = {"auto": "ckpt_auto", "multilingual": "ckpt_multilingual", "english": "ckpt_english"}
+
+
+def checkpoint_choices() -> list[tuple[str, str]]:
+    return [(t(name), value) for value, name in CHECKPOINT_NAMES.items()]
 
 
 def _backend(checkpoint: str, texts: list[str], questions) -> LayaBackend:
@@ -306,49 +400,49 @@ def _backend(checkpoint: str, texts: list[str], questions) -> LayaBackend:
     if resolved not in _backends:
         _backends[resolved] = LayaBackend(checkpoint=resolved)
     backend = _backends[resolved]
-    backend.name = f"laya ({resolved}{', chosen automatically' if checkpoint == 'auto' else ''})"
+    variant = t(CHECKPOINT_NAMES[resolved]) if resolved in CHECKPOINT_NAMES else resolved
+    backend.name = f"laya ({variant}{', ' + t('engine_auto') if checkpoint == 'auto' else ''})"
     return backend
 
 
-def on_run(file, columns, table, threshold, checkpoint, allow_sensitive, progress=gr.Progress()):
-    if not file:
-        raise gr.Error("Drop a CSV or XLSX file first.")
-    if not columns:
-        raise gr.Error("Choose at least one column to read.")
-    try:
-        questions = _rows_to_questions(table)
-    except QuestionError as e:
-        raise gr.Error(str(e)) from e
-    if any(q.type in EXPERIMENTAL_TYPES for q in questions):
-        gr.Warning("`score` questions are experimental: check those answers by hand.")
+def on_run(file, columns, table, threshold, checkpoint, allow_sensitive, lang="en", progress=gr.Progress()):
+    with language(lang):
+        if not file:
+            raise error(t("err_no_file"))
+        if not columns:
+            raise error(t("err_no_columns"))
+        try:
+            questions = _rows_to_questions(table)
+        except QuestionError as e:
+            raise error(str(e)) from e
+        if any(q.type in EXPERIMENTAL_TYPES for q in questions):
+            warning(t("warn_score"))
 
-    df, info = read_table(file)
-    # before loading the model: personal data is only read with the user's confirmation
-    sensitive = scan_sensitive(build_texts(df, columns))
-    if sensitive and not allow_sensitive:
-        raise gr.Error(
-            f"The columns to read hold personal data ({describe_sensitive(sensitive)}). If you are allowed "
-            "to process it, tick the confirmation under the columns; otherwise remove that data from the file."
-        )
-    texts = df[columns].astype(str).agg(" ".join, axis=1).tolist()
-    progress(0, desc="Loading the model (the first run downloads it)…")
-    try:
-        backend = _backend(checkpoint, texts, questions)
-        result = classify(
-            df, columns, questions, backend, threshold,
-            progress=lambda done, total: progress(done / total, desc=f"{done}/{total} rows"),
-            allow_sensitive=bool(allow_sensitive),
-        )
-    except (ValueError, BackendError) as e:
-        raise gr.Error(str(e)) from e
-    # uploads live in a temp folder; write the outputs to a fresh one
-    save_result(result, info, out_dir=work_dir())
-    flagged = (result.table[REVIEW_COL] == "yes").sum()
-    gr.Info(f"Done: {len(result.table)} rows, {flagged} to review.")
-    if result.manipulation_rows:
-        gr.Warning(f"{result.manipulation_rows} row(s) look written to steer the answers. They are marked "
-                   "for review; check them by hand.")
-    return result.table, render_summary(result), [str(result.table_path), str(result.summary_path)]
+        df, info = read_table(file)
+        # before loading the model: personal data is only read with the user's confirmation
+        sensitive = scan_sensitive(build_texts(df, columns))
+        if sensitive and not allow_sensitive:
+            raise error(t("err_sensitive_ui", found=describe_sensitive(sensitive)))
+        texts = df[columns].astype(str).agg(" ".join, axis=1).tolist()
+        progress(0, desc=t("progress_loading"))
+        try:
+            backend = _backend(checkpoint, texts, questions)
+            # the progress callback runs in this thread, inside the language block
+            result = classify(
+                df, columns, questions, backend, threshold,
+                progress=lambda done, total: progress(done / total, desc=t("progress_rows", done=num(done),
+                                                                           total=num(total))),
+                allow_sensitive=bool(allow_sensitive),
+            )
+        except (ValueError, BackendError) as e:
+            raise error(str(e)) from e
+        # uploads live in a temp folder; write the outputs to a fresh one
+        save_result(result, info, out_dir=work_dir())
+        flagged = (result.table[REVIEW_COL] == "yes").sum()
+        gr.Info(t("done", rows=rows(len(result.table)), flagged=num(flagged)), title=t("title_info"))
+        if result.manipulation_rows:
+            warning(t("warn_manipulation", rows=rows(result.manipulation_rows)))
+        return result.table, render_summary(result), [str(result.table_path), str(result.summary_path)]
 
 
 # Background geometry (see CSS above): each section is 15% smaller than the one in front of it
@@ -387,51 +481,61 @@ def readme_markdown(path: Path) -> str:
 
 
 def build() -> gr.Blocks:
+    """The page, labelled in English; the language button (and the first visit, from the browser's
+    language) re-labels it through `relabel`."""
+    with language("en"):
+        return _build()
+
+
+def _build() -> gr.Blocks:
     # Gradio's upload cache (copies of the user's files): checked hourly, removed after 3 hours
     with gr.Blocks(title="LUAR", analytics_enabled=False, delete_cache=(3600, 3 * 3600)) as demo:
         gr.HTML(background_html(), padding=False, container=False)
-        readmes = {lang: path for lang, path in READMES.items() if path.exists()}
+        lang = gr.Textbox("en", visible=False)  # "en" or "pt": every event reads the language from here
+        readmes = {code: (tab, path) for code, (tab, path) in READMES.items() if path.exists()}
         with gr.Row(elem_id="luar-header"):
-            gr.Markdown("# LUAR")
+            lang_btn = gr.Button(t("lang_button"), icon=str(FLAGS["en"]), variant="secondary", size="md",
+                                 elem_id="luar-lang")
+            gr.Markdown("# LUAR", elem_id="luar-title")
             with gr.Row(elem_id="luar-actions"):
-                readme_btn = gr.Button("README", variant="secondary", size="md", visible=bool(readmes))
-                for label, path in (("Sample CSV", SAMPLE_CSV), ("Sample JSON", SAMPLE_QUESTIONS)):
+                readme_btn = gr.Button(t("readme"), variant="secondary", size="md", visible=bool(readmes))
+                sample_btns = [
                     gr.DownloadButton(
-                        label, value=str(path) if path.exists() else None,
+                        t(key), value=str(path) if path.exists() else None,
                         variant="secondary", size="md", visible=path.exists(),
                     )
-        gr.Markdown(TAGLINE, elem_id="luar-tagline")
-        with gr.Sidebar(label="README", open=False, position="right", width="min(760px, 92vw)") as manual:
-            with gr.Tabs():
-                for lang, path in readmes.items():
-                    with gr.Tab(lang):
+                    for key, path in (("sample_csv", SAMPLE_CSV), ("sample_json", SAMPLE_QUESTIONS))
+                ]
+        tagline = gr.Markdown(t("tagline"), elem_id="luar-tagline")
+        with gr.Sidebar(label=t("readme"), open=False, position="right", width="min(760px, 92vw)") as manual:
+            with gr.Tabs(selected="en") as readme_tabs:
+                for code, (tab, path) in readmes.items():
+                    with gr.Tab(tab, id=code):
                         gr.Markdown(readme_markdown(path))
         readme_btn.click(lambda: gr.Sidebar(open=True), None, manual)
-        if not laya_installed():
-            gr.Markdown(f"**The Laya engine could not be loaded.** Reinstall it with `{INSTALL_HINT}` and restart LUAR.")
+        laya_missing = gr.Markdown(t("laya_missing", hint=INSTALL_HINT), visible=not laya_installed())
         source = gr.State()
+        file_info = gr.State()  # what on_file found, to show its status line in either language
+        headings = {}
         with gr.Row(equal_height=False):
             with gr.Column(scale=1, elem_classes="luar-step"):
-                gr.Markdown(heading("1. Spreadsheet", TIPS["sheet"]))
-                upload = gr.File(label="CSV or XLSX", file_types=[".csv", ".xlsx", ".xlsm", ".txt"])
+                headings["sheet"] = gr.Markdown(step_heading("sheet"))
+                upload = gr.File(label=t("upload"), file_types=[".csv", ".xlsx", ".xlsm", ".txt"])
                 status = gr.Markdown()
-                columns = gr.CheckboxGroup(label="Column(s) the model should read", choices=[])
-                allow_sensitive = gr.Checkbox(
-                    label="These columns hold personal data, and I am allowed to process it",
-                    value=False, visible=False,
-                )
+                columns = gr.CheckboxGroup(label=t("columns"), choices=[])
+                allow_sensitive = gr.Checkbox(label=t("allow_sensitive"), value=False, visible=False)
                 example = gr.Dropdown(
-                    list(EXAMPLE_SETS), label="…or try an example", value=None,
+                    example_choices(), label=t("example"), value=None,
                     visible=EXAMPLES.exists(),  # examples ship with the repo, not the wheel
                 )
             with gr.Column(scale=2, elem_classes="luar-step"):
-                gr.Markdown(heading("Preview", TIPS["preview"]))
+                headings["preview"] = gr.Markdown(step_heading("preview"))
                 preview = gr.Dataframe(interactive=False, max_height=260, wrap=True)
 
         with gr.Column(elem_classes="luar-step"):
-            gr.Markdown(heading("2. What do you want to know about each row?", TIPS["questions"]))
+            headings["questions"] = gr.Markdown(step_heading("questions"))
             questions = gr.Dataframe(
-                headers=QUESTION_HEADERS,
+                headers=question_headers(),
                 datatype=["str", "str", "str", "str"],
                 value=[["", "choice", "", ""]],
                 interactive=True,
@@ -442,38 +546,81 @@ def build() -> gr.Blocks:
                 wrap=True,
                 column_widths=["12%", "10%", "38%", "40%"],
             )
-            gr.Markdown(QUESTION_HELP)
+            question_help = gr.Markdown(t("question_help"))
         with gr.Row():
-            q_upload = gr.File(label="Load questions (.json)", file_types=[".json"], scale=1)
-            q_save = gr.Button("Save questions as .json", variant="secondary", scale=0)
-            q_file = gr.File(label="Questions file", interactive=False, scale=1)
+            q_upload = gr.File(label=t("load_questions"), file_types=[".json"], scale=1)
+            q_save = gr.Button(t("save_questions"), variant="secondary", scale=0)
+            q_file = gr.File(label=t("questions_file"), interactive=False, scale=1)
 
-        gr.Markdown(heading("3. Run", TIPS["run"]), elem_classes="luar-step")
+        headings["run"] = gr.Markdown(step_heading("run"), elem_classes="luar-step")
         with gr.Row():
             threshold = gr.Slider(
-                0.5, 0.95, value=DEFAULT_THRESHOLD, step=0.05, label="Confidence threshold",
-                info="Answers below it mark the row as needs_review",
+                0.5, 0.95, value=DEFAULT_THRESHOLD, step=0.05, label=t("threshold"), info=t("threshold_info"),
             )
             checkpoint = gr.Dropdown(
-                ["auto", "multilingual", "english"], value="auto", label="Laya model variant",
-                info="auto: English files use the English model, others the multilingual one",
+                checkpoint_choices(), value="auto", label=t("checkpoint"), info=t("checkpoint_info"),
             )
-        run = gr.Button("Run", variant="primary", size="lg", elem_id="luar-run")
+        run = gr.Button(t("run"), variant="primary", size="lg", elem_id="luar-run")
 
-        gr.Markdown(heading("Result", TIPS["result"]), elem_classes="luar-step")
-        downloads = gr.File(label="Download (result copy + summary)", file_count="multiple", interactive=False)
+        headings["result"] = gr.Markdown(step_heading("result"), elem_classes="luar-step")
+        downloads = gr.File(label=t("downloads"), file_count="multiple", interactive=False)
         with gr.Tabs():
-            with gr.Tab("Summary"):
+            with gr.Tab(t("tab_summary")) as summary_tab:
                 summary = gr.Markdown()
-            with gr.Tab("Table"):
+            with gr.Tab(t("tab_table")) as table_tab:
                 result = gr.Dataframe(interactive=False, max_height=420, wrap=True)
 
-        upload.change(on_file, upload, [columns, preview, status, source, allow_sensitive])
-        example.change(on_example, example, [upload, questions])
-        q_upload.change(on_load_questions, q_upload, questions)
-        q_save.click(on_save_questions, questions, q_file)
+        def relabel(code, table, info, example_value, checkpoint_value):
+            """Every text on the page in the chosen language. Results already shown (summary, table,
+            files) stay as they were made: they are the output of that run."""
+            code = normalize(code)
+            with language(code):
+                table = table if isinstance(table, pd.DataFrame) else pd.DataFrame(table)
+                return [
+                    gr.update(value=t("lang_button"), icon=str(FLAGS[code])),
+                    gr.update(value=t("readme")),
+                    *[gr.update(label=t(key)) for key in ("sample_csv", "sample_json")],
+                    gr.update(value=t("tagline")),
+                    gr.update(label=t("readme")),
+                    gr.update(selected=code if code in readmes else next(iter(readmes), None)),
+                    gr.update(value=t("laya_missing", hint=INSTALL_HINT)),
+                    *[gr.update(value=step_heading(step)) for step in headings],
+                    gr.update(label=t("upload")),
+                    gr.update(value=file_status(info)),
+                    gr.update(label=t("columns")),
+                    gr.update(label=t("allow_sensitive")),
+                    gr.update(choices=example_choices(), value=example_value, label=t("example")),
+                    questions_frame(table.iloc[:, :4].fillna("").values.tolist()),
+                    gr.update(value=t("question_help")),
+                    gr.update(label=t("load_questions")),
+                    gr.update(value=t("save_questions")),
+                    gr.update(label=t("questions_file")),
+                    gr.update(label=t("threshold"), info=t("threshold_info")),
+                    gr.update(choices=checkpoint_choices(), value=checkpoint_value, label=t("checkpoint"),
+                              info=t("checkpoint_info")),
+                    gr.update(value=t("run")),
+                    gr.update(label=t("downloads")),
+                    gr.update(label=t("tab_summary")),
+                    gr.update(label=t("tab_table")),
+                ]
+
+        relabelled = [
+            lang_btn, readme_btn, *sample_btns, tagline, manual, readme_tabs, laya_missing,
+            *headings.values(), upload, status, columns, allow_sensitive, example, questions, question_help,
+            q_upload, q_save, q_file, threshold, checkpoint, run, downloads, summary_tab, table_tab,
+        ]
+        # the language box changes in the page (button or first visit); the page is then re-labelled
+        lang.change(relabel, [lang, questions, file_info, example, checkpoint], relabelled)
+        lang_btn.click(None, lang, lang, js=TOGGLE_LANG_JS)
+        demo.load(None, None, lang, js=LOAD_LANG_JS)
+
+        upload.change(on_file, [upload, lang], [columns, preview, status, source, allow_sensitive, file_info])
+        # .input, not .change: re-labelling the menu must not load the example again
+        example.input(on_example, [example, lang], [upload, questions])
+        q_upload.change(on_load_questions, [q_upload, lang], questions)
+        q_save.click(on_save_questions, [questions, lang], q_file)
         run.click(
-            on_run, [source, columns, questions, threshold, checkpoint, allow_sensitive],
+            on_run, [source, columns, questions, threshold, checkpoint, allow_sensitive, lang],
             [result, summary, downloads],
         )
     return demo
@@ -484,7 +631,7 @@ def launch(port: int = 7860, share: bool = False, open_browser: bool = True) -> 
     atexit.register(clean_work_dir, all_of_it=True)    # this session's copies, when LUAR closes
     build().launch(
         server_name="127.0.0.1", server_port=port, share=share, inbrowser=open_browser,
-        theme=THEME, css=CSS, allowed_paths=[str(IMAGES)], max_file_size=MAX_UPLOAD,
+        theme=THEME, css=CSS + gradio_words_css(), allowed_paths=[str(IMAGES)], max_file_size=MAX_UPLOAD,
     )
 
 

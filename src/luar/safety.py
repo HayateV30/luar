@@ -12,6 +12,7 @@ import re
 import unicodedata
 from collections import Counter
 
+from .i18n import rows, t
 from .questions import Question
 
 MANIPULATION = "possible manipulation"
@@ -170,5 +171,7 @@ class SensitiveDataError(ValueError):
     """The columns to read hold personal data and the user has not confirmed they may process it."""
 
 
-def describe_sensitive(counts: Counter) -> str:
-    return ", ".join(f"{kind} in {n} row{'s' if n != 1 else ''}" for kind, n in counts.most_common())
+def describe_sensitive(counts) -> str:
+    """ "CPF in 2 rows, e-mail in 1 row", in the interface language; `counts` maps kind -> rows."""
+    ranked = sorted(dict(counts).items(), key=lambda item: -item[1])
+    return ", ".join(t("kind_in_rows", kind=t("kind_" + kind), rows=rows(n)) for kind, n in ranked)

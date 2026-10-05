@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from .backends.base import Answer, Backend, Progress
+from .i18n import t
 from .questions import EXPERIMENTAL_TYPES, Question, validate_questions
 from .safety import MANIPULATION, SensitiveDataError, describe_sensitive, manipulation_signals, scan_sensitive
 from .tables import TableInfo, output_paths, read_table, write_table
@@ -45,9 +46,9 @@ def build_texts(df: pd.DataFrame, text_columns: list[str]) -> list[str]:
     """One text per row. A single column is used as is; several become "column: value" lines."""
     missing = [c for c in text_columns if c not in df.columns]
     if missing:
-        raise ValueError(f"Column(s) not found: {', '.join(missing)}")
+        raise ValueError(t("e_missing_columns", columns=", ".join(missing)))
     if not text_columns:
-        raise ValueError("Choose at least one column to read.")
+        raise ValueError(t("err_no_columns"))
     texts = []
     for _, row in df[text_columns].iterrows():
         parts = []
@@ -82,10 +83,7 @@ def _check_columns(df: pd.DataFrame, questions: list[Question]) -> None:
         new_cols += [q.id, confidence_col(q.id)]
     clash = [c for c in new_cols if c in df.columns]
     if clash:
-        raise ValueError(
-            f"The file already has column(s) {', '.join(clash)}; rename the question id(s) "
-            "or use the original file instead of a previous LUAR result."
-        )
+        raise ValueError(t("e_clash", columns=", ".join(clash)))
 
 
 def classify(
@@ -104,16 +102,13 @@ def classify(
     validate_questions(questions)
     _check_columns(df, questions)
     if not 0 <= threshold <= 1:
-        raise ValueError("The confidence threshold must be between 0 and 1.")
+        raise ValueError(t("e_threshold"))
 
     started = datetime.now()
     texts = build_texts(df, text_columns)
     sensitive = scan_sensitive(texts)
     if sensitive and not allow_sensitive:
-        raise SensitiveDataError(
-            f"The column(s) to read hold personal data ({describe_sensitive(sensitive)}). Process them "
-            "only if you are allowed to: confirm it to continue, or remove that data from the file."
-        )
+        raise SensitiveDataError(t("e_sensitive", found=describe_sensitive(sensitive)))
     filled = [i for i, t in enumerate(texts) if t]
     answers: list[dict[str, Answer] | None] = [None] * len(texts)
     if filled:

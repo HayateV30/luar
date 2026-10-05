@@ -26,7 +26,7 @@ def no_network(monkeypatch):
 
 def test_readme_screenshots_are_served_locally():
     app = pytest.importorskip("luar.app")
-    for path in app.READMES.values():
+    for _, path in app.READMES.values():
         if not path.exists():
             continue
         images = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", app.readme_markdown(path))

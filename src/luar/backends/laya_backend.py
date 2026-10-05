@@ -6,6 +6,7 @@ import importlib.util
 import json
 from pathlib import Path
 
+from ..i18n import t
 from ..questions import Question
 from .base import Answer, BackendError, Progress
 
@@ -45,15 +46,8 @@ def is_library_error(e: OSError) -> bool:
 def library_error(e: OSError) -> LibraryBlockedError:
     """Explain a PyTorch DLL that failed to load (Laya imports PyTorch on first use)."""
     if getattr(e, "winerror", None) == WINERROR_APP_CONTROL or f"WinError {WINERROR_APP_CONTROL}" in str(e):
-        return LibraryBlockedError(
-            "Windows blocked one of PyTorch's files (Application Control, WinError 4551), so the Laya "
-            "engine could not start. This can happen just once: close LUAR and open it again. If it keeps "
-            f"happening, ask whoever manages this computer to allow PyTorch's files. Details: {e}"
-        )
-    return LibraryBlockedError(
-        "PyTorch, which the Laya engine needs, could not be loaded. Close LUAR and open it again; if it "
-        f"keeps happening, reinstall it with: pip install --force-reinstall torch. Details: {e}"
-    )
+        return LibraryBlockedError(t("b_app_control", error=e))
+    return LibraryBlockedError(t("b_torch", error=e))
 
 
 def import_laya():
@@ -61,9 +55,7 @@ def import_laya():
     try:
         import laya  # heavy import (torch); only when actually needed
     except ImportError as e:
-        raise LayaNotInstalledError(
-            f"The Laya engine could not be loaded. Reinstall it with: {INSTALL_HINT}"
-        ) from e
+        raise LayaNotInstalledError(t("b_laya_missing", hint=INSTALL_HINT)) from e
     except OSError as e:
         if is_library_error(e):  # a PyTorch DLL refused to load
             raise library_error(e) from e
@@ -144,10 +136,7 @@ def verify_weights(folder: str | Path, subfolder: str | None, repo: str = DEFAUL
         for block in iter(lambda: f.read(1 << 20), b""):
             digest.update(block)
     if digest.hexdigest() != expected:
-        raise ModelIntegrityError(
-            f"The Laya model file does not match the official one ({weights}). It may be corrupted or "
-            "altered: delete that folder and download it again with: luar download"
-        )
+        raise ModelIntegrityError(t("b_integrity", path=weights))
     cache[key] = mark
     try:
         VERIFIED_CACHE.parent.mkdir(parents=True, exist_ok=True)
@@ -201,7 +190,7 @@ class LayaBackend:
         batch_size: int = 16,
     ):
         if checkpoint not in CHECKPOINTS:
-            raise ValueError(f"Unknown checkpoint {checkpoint!r}; use one of {', '.join(CHECKPOINTS)}.")
+            raise ValueError(t("b_unknown_checkpoint", name=repr(checkpoint), names=", ".join(CHECKPOINTS)))
         self.checkpoint = checkpoint
         self.device = device
         self.repo = repo
@@ -212,7 +201,7 @@ class LayaBackend:
     def _load(self, texts: list[str], questions: list[Question]):
         if self.checkpoint == "auto":
             self.checkpoint = pick_checkpoint(texts, questions)
-            self.name = f"laya ({self.checkpoint}, chosen automatically)"
+            self.name = f"laya ({self.checkpoint}, {t('engine_auto')})"
         if self._agent is None:
             laya = import_laya()
 

@@ -107,6 +107,12 @@ outside connection: neither the interface nor the model.
 
 > **Tip:** each step of the interface has an **ⓘ** icon at the right of its title. Hover it (or reach it
 > with the Tab key) for a short explanation of that step.
+>
+> **Language:** the interface is in English or Brazilian Portuguese. The first time, it follows your
+> browser's language; the **PT-BR** / **English** button (with a flag) at the top left of the page switches every
+> text on the page at once (your file, questions and choices stay as they are), and the browser
+> remembers the choice. The summary is written in the language that is on when you click **Run**;
+> the result spreadsheet is the same in both languages.
 
 ### Step 1: open LUAR
 
@@ -143,7 +149,7 @@ Drag your file onto the **CSV or XLSX** box (or click it to choose the file).
 pick a bundled example in **…or try an example**, or click **Sample CSV** at the top of the page
 to download a test spreadsheet with 20 made-up customer messages, and **Sample JSON** for the
 questions that go with it (load them in **Load questions (.json)**, step 3). The **README** button
-next to them opens this manual. To load both at once, pick **Amostra de teste (Sample CSV)** in the
+next to them opens this manual. To load both at once, pick **Test sample (Sample CSV)** in the
 examples menu. Otherwise, download
 [reviews.csv](https://raw.githubusercontent.com/HayateV30/luar/main/examples/reviews.csv) and
 [reviews_questions.json](https://raw.githubusercontent.com/HayateV30/luar/main/examples/reviews_questions.json)

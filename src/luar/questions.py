@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .i18n import t
+
 QUESTION_TYPES = ("choice", "score", "noul")
 EXPERIMENTAL_TYPES = ("score",)
 MAX_OPTIONS = 20
@@ -26,27 +28,19 @@ class Question:
 
     def validate(self) -> None:
         if not _ID_RE.match(self.id or ""):
-            raise QuestionError(
-                f"Invalid question id {self.id!r}: use letters, digits and underscores, "
-                "not starting with a digit."
-            )
+            raise QuestionError(t("q_bad_id", id=repr(self.id)))
         if self.type not in QUESTION_TYPES:
-            raise QuestionError(
-                f"Question {self.id!r}: type must be one of {', '.join(QUESTION_TYPES)}."
-            )
+            raise QuestionError(t("q_bad_type", id=repr(self.id), types=", ".join(QUESTION_TYPES)))
         if not self.question.strip():
-            raise QuestionError(f"Question {self.id!r}: the question text is empty.")
+            raise QuestionError(t("q_empty", id=repr(self.id)))
         if self.type == "noul":
             if self.options:
-                raise QuestionError(f"Question {self.id!r}: yes/no (noul) questions take no options.")
+                raise QuestionError(t("q_noul_options", id=repr(self.id)))
             return
         if len(self.options) < 2:
-            raise QuestionError(f"Question {self.id!r}: {self.type} needs at least 2 options.")
+            raise QuestionError(t("q_few_options", id=repr(self.id), type=self.type))
         if len(self.options) > MAX_OPTIONS:
-            raise QuestionError(
-                f"Question {self.id!r}: {len(self.options)} options; the model handles at most "
-                f"{MAX_OPTIONS}. Split it into two questions."
-            )
+            raise QuestionError(t("q_many_options", id=repr(self.id), n=len(self.options), max=MAX_OPTIONS))
 
     def to_laya(self) -> dict:
         q: dict = {"type": self.type, "instructions": self.question}
@@ -84,7 +78,7 @@ def _parse_options(raw) -> dict[str, str]:
             label, _, desc = part.partition(":")
             opts[label.strip()] = desc.strip()
         return opts
-    raise QuestionError(f"Unrecognized options format: {raw!r}")
+    raise QuestionError(t("q_bad_options", raw=repr(raw)))
 
 
 def question_from_dict(d: dict, qid: str | None = None) -> Question:
@@ -110,19 +104,19 @@ def parse_questions(data) -> list[Question]:
     elif isinstance(data, list):
         questions = [question_from_dict(v) for v in data]
     else:
-        raise QuestionError("Questions must be a list or a mapping of id -> question.")
+        raise QuestionError(t("q_bad_structure"))
     validate_questions(questions)
     return questions
 
 
 def validate_questions(questions: list[Question]) -> None:
     if not questions:
-        raise QuestionError("Define at least one question.")
+        raise QuestionError(t("q_none"))
     seen = set()
     for q in questions:
         q.validate()
         if q.id in seen:
-            raise QuestionError(f"Duplicate question id {q.id!r}.")
+            raise QuestionError(t("q_duplicate", id=repr(q.id)))
         seen.add(q.id)
 
 
