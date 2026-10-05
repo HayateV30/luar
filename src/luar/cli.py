@@ -35,10 +35,14 @@ def _cmd_run(args) -> int:
     result = run_file(
         args.file, questions, args.columns, backend,
         threshold=args.threshold, out_dir=args.out_dir, sheet=args.sheet, progress=progress,
+        allow_sensitive=args.allow_sensitive_data,
     )
     flagged = (result.table["needs_review"] == "yes").sum()
     print(file=sys.stderr)
     print(f"Done: {len(result.table)} rows, {flagged} to review.")
+    if result.manipulation_rows:
+        print(f"  Warning: {result.manipulation_rows} row(s) look written to steer the answers; "
+              "they are marked for review.")
     print(f"  Result:  {result.table_path}")
     print(f"  Summary: {result.summary_path}")
     return 0
@@ -82,6 +86,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--checkpoint", default="auto", choices=["auto", "multilingual", "english", "typed-decisions"],
                    help="Laya model variant (default: auto, by the file's language)")
     p.add_argument("--device", help="cpu or cuda (default: automatic)")
+    p.add_argument("--allow-sensitive-data", action="store_true",
+                   help="read columns holding personal data (CPF, CNPJ, card numbers, e-mails, phones); "
+                        "only if you are allowed to process it")
     p.set_defaults(func=_cmd_run)
 
     p = sub.add_parser("columns", help="list a file's columns with a sample value")
@@ -107,7 +114,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.func(args)
     except (ValueError, FileNotFoundError, FileExistsError, BackendError) as e:
-        print(f"error: {e}", file=sys.stderr)
+        from .safety import SensitiveDataError
+
+        hint = " On the command line, confirm with --allow-sensitive-data." if isinstance(e, SensitiveDataError) else ""
+        print(f"error: {e}{hint}", file=sys.stderr)
         return 2
 
 

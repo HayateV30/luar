@@ -2,9 +2,12 @@
 files never leave the machine and the page works offline."""
 from __future__ import annotations
 
+import atexit
 import json
 import os
+import shutil
 import tempfile
+import time
 from pathlib import Path
 from urllib.parse import quote
 
@@ -16,7 +19,8 @@ import pandas as pd
 
 from .backends.base import BackendError
 from .backends.laya_backend import INSTALL_HINT, LayaBackend, laya_installed, pick_checkpoint
-from .engine import DEFAULT_THRESHOLD, EXPECTED_PREFIX, REVIEW_COL, classify, save_result
+from .engine import DEFAULT_THRESHOLD, EXPECTED_PREFIX, REVIEW_COL, build_texts, classify, save_result
+from .safety import describe_sensitive, scan_sensitive
 from .questions import EXPERIMENTAL_TYPES, QuestionError, dump_questions, load_questions, parse_questions
 from .report import render_summary
 from .tables import read_table
@@ -32,6 +36,13 @@ IMAGES = ROOT / "docs" / "images"
 REMOTE_IMAGES = "https://raw.githubusercontent.com/HayateV30/luar/main/docs/images/"
 QUESTION_HEADERS = ["id", "type", "question", "options"]
 PREVIEW_ROWS = 8
+# limits that keep a huge or hostile file from freezing the machine (the command line has no row limit)
+MAX_UPLOAD = "50mb"
+MAX_ROWS = 20_000
+# copies of the user's data (results, saved questions) live here and are deleted when LUAR closes;
+# leftovers from a crash are removed after a day. Gradio's own upload cache is cleaned by delete_cache.
+WORK_DIR = Path(tempfile.gettempdir()) / "luar"
+STALE_AFTER = 24 * 3600
 _backends: dict[str, LayaBackend] = {}  # loaded models, reused between runs
 
 TAGLINE = """
@@ -163,13 +174,37 @@ def _rows_to_questions(table) -> list:
     return parse_questions(data)
 
 
+def work_dir() -> Path:
+    """A fresh folder for this session's outputs, removed when LUAR closes."""
+    WORK_DIR.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(dir=WORK_DIR))
+
+
+def clean_work_dir(all_of_it: bool = False) -> None:
+    if not WORK_DIR.is_dir():
+        return
+    now = time.time()
+    for folder in WORK_DIR.iterdir():
+        try:
+            if all_of_it or now - folder.stat().st_mtime > STALE_AFTER:
+                shutil.rmtree(folder, ignore_errors=True)
+        except OSError:
+            pass
+
+
 def on_file(file):
+    hidden = gr.update(visible=False, value=False)
     if file is None:
-        return gr.update(choices=[], value=[]), None, "", None
+        return gr.update(choices=[], value=[]), None, "", None, hidden
     try:
         df, info = read_table(file)
     except Exception as e:  # unreadable file: tell the user, keep the UI alive
         raise gr.Error(f"Could not read this file: {e}") from e
+    if len(df) > MAX_ROWS:
+        raise gr.Error(
+            f"This file has {len(df):,} rows; the interface takes up to {MAX_ROWS:,} (about one row per "
+            "second with Laya). Split the file, or use the command line: luar run"
+        )
     # expected_* columns hold known answers: never offer them as model input
     readable = [c for c in df.columns if not str(c).startswith(EXPECTED_PREFIX)]
     # suggest the column with the longest text on average
@@ -177,11 +212,16 @@ def on_file(file):
     best = max(lengths, key=lengths.get) if lengths else None
     detail = f"separator `{info.sep}`, {info.encoding}" if info.kind == "csv" else f"sheet `{info.sheet}`"
     status = f"**{Path(file).name}**: {len(df)} rows, {len(df.columns)} columns ({detail})."
+    sensitive = scan_sensitive(build_texts(df, readable)) if readable else None
+    if sensitive:
+        status += (f"\n\n**Personal data found:** {describe_sensitive(sensitive)}. LUAR will only read "
+                   "these columns if you confirm you are allowed to process this data.")
     return (
         gr.update(choices=readable, value=[best] if best else []),
         df.head(PREVIEW_ROWS),
         status,
         file,
+        gr.update(visible=bool(sensitive), value=False),
     )
 
 
@@ -199,7 +239,7 @@ def on_save_questions(table):
         questions = _rows_to_questions(table)
     except QuestionError as e:
         raise gr.Error(str(e)) from e
-    path = Path(tempfile.mkdtemp(prefix="luar_")) / "questions.json"
+    path = work_dir() / "questions.json"
     path.write_text(dump_questions(questions), encoding="utf-8")
     return path
 
@@ -227,7 +267,7 @@ def _backend(checkpoint: str, texts: list[str], questions) -> LayaBackend:
     return backend
 
 
-def on_run(file, columns, table, threshold, checkpoint, progress=gr.Progress()):
+def on_run(file, columns, table, threshold, checkpoint, allow_sensitive, progress=gr.Progress()):
     if not file:
         raise gr.Error("Drop a CSV or XLSX file first.")
     if not columns:
@@ -240,6 +280,13 @@ def on_run(file, columns, table, threshold, checkpoint, progress=gr.Progress()):
         gr.Warning("`score` questions are experimental: check those answers by hand.")
 
     df, info = read_table(file)
+    # before loading the model: personal data is only read with the user's confirmation
+    sensitive = scan_sensitive(build_texts(df, columns))
+    if sensitive and not allow_sensitive:
+        raise gr.Error(
+            f"The columns to read hold personal data ({describe_sensitive(sensitive)}). If you are allowed "
+            "to process it, tick the confirmation under the columns; otherwise remove that data from the file."
+        )
     texts = df[columns].astype(str).agg(" ".join, axis=1).tolist()
     progress(0, desc="Loading the model (the first run downloads it)…")
     try:
@@ -247,13 +294,17 @@ def on_run(file, columns, table, threshold, checkpoint, progress=gr.Progress()):
         result = classify(
             df, columns, questions, backend, threshold,
             progress=lambda done, total: progress(done / total, desc=f"{done}/{total} rows"),
+            allow_sensitive=bool(allow_sensitive),
         )
     except (ValueError, BackendError) as e:
         raise gr.Error(str(e)) from e
     # uploads live in a temp folder; write the outputs to a fresh one
-    save_result(result, info, out_dir=tempfile.mkdtemp(prefix="luar_"))
+    save_result(result, info, out_dir=work_dir())
     flagged = (result.table[REVIEW_COL] == "yes").sum()
     gr.Info(f"Done: {len(result.table)} rows, {flagged} to review.")
+    if result.manipulation_rows:
+        gr.Warning(f"{result.manipulation_rows} row(s) look written to steer the answers. They are marked "
+                   "for review; check them by hand.")
     return result.table, render_summary(result), [str(result.table_path), str(result.summary_path)]
 
 
@@ -293,7 +344,8 @@ def readme_markdown(path: Path) -> str:
 
 
 def build() -> gr.Blocks:
-    with gr.Blocks(title="LUAR", analytics_enabled=False) as demo:
+    # Gradio's upload cache (copies of the user's files): checked hourly, removed after 3 hours
+    with gr.Blocks(title="LUAR", analytics_enabled=False, delete_cache=(3600, 3 * 3600)) as demo:
         gr.HTML(background_html(), padding=False, container=False)
         readmes = {lang: path for lang, path in READMES.items() if path.exists()}
         with gr.Row(elem_id="luar-header"):
@@ -321,6 +373,10 @@ def build() -> gr.Blocks:
                 upload = gr.File(label="CSV or XLSX", file_types=[".csv", ".xlsx", ".xlsm", ".txt"])
                 status = gr.Markdown()
                 columns = gr.CheckboxGroup(label="Column(s) the model should read", choices=[])
+                allow_sensitive = gr.Checkbox(
+                    label="These columns hold personal data, and I am allowed to process it",
+                    value=False, visible=False,
+                )
                 example = gr.Dropdown(
                     list(EXAMPLE_SETS), label="…or try an example", value=None,
                     visible=EXAMPLES.exists(),  # examples ship with the repo, not the wheel
@@ -369,21 +425,23 @@ def build() -> gr.Blocks:
             with gr.Tab("Table"):
                 result = gr.Dataframe(interactive=False, max_height=420, wrap=True)
 
-        upload.change(on_file, upload, [columns, preview, status, source])
+        upload.change(on_file, upload, [columns, preview, status, source, allow_sensitive])
         example.change(on_example, example, [upload, questions])
         q_upload.change(on_load_questions, q_upload, questions)
         q_save.click(on_save_questions, questions, q_file)
         run.click(
-            on_run, [source, columns, questions, threshold, checkpoint],
+            on_run, [source, columns, questions, threshold, checkpoint, allow_sensitive],
             [result, summary, downloads],
         )
     return demo
 
 
 def launch(port: int = 7860, share: bool = False, open_browser: bool = True) -> None:
+    clean_work_dir()                                   # leftovers older than a day (e.g. after a crash)
+    atexit.register(clean_work_dir, all_of_it=True)    # this session's copies, when LUAR closes
     build().launch(
         server_name="127.0.0.1", server_port=port, share=share, inbrowser=open_browser,
-        theme=THEME, css=CSS, allowed_paths=[str(IMAGES)],
+        theme=THEME, css=CSS, allowed_paths=[str(IMAGES)], max_file_size=MAX_UPLOAD,
     )
 
 

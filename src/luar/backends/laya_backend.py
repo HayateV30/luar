@@ -1,7 +1,9 @@
 """Laya backend: local Jev-style decision model (https://huggingface.co/convaiinnovations/laya)."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import json
 from pathlib import Path
 
 from ..questions import Question
@@ -102,6 +104,56 @@ def extract_answer(raw: dict | None, qtype: str, labels: list[str] | None = None
 
 
 MODEL_FILES = ("rl_agent_config.json", "model.safetensors", "tokenizer/*", "encoder/*")
+DEFAULT_REPO = "convaiinnovations/laya"
+# Pinned revision of DEFAULT_REPO and the SHA-256 of its weights, as published on the Hub. LUAR only
+# loads weights that match, so a corrupted or tampered download is refused instead of run.
+REVISION = "55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851"
+WEIGHTS_SHA256 = {
+    None: "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c",              # english
+    "multilingual": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204",
+    "typed-decisions": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e",
+}
+VERIFIED_CACHE = Path.home() / ".cache" / "luar" / "verified-weights.json"
+
+
+class ModelIntegrityError(BackendError):
+    pass
+
+
+def _revision(repo: str) -> str | None:
+    return REVISION if repo == DEFAULT_REPO else None
+
+
+def verify_weights(folder: str | Path, subfolder: str | None, repo: str = DEFAULT_REPO) -> None:
+    """Check model.safetensors against the published hash. Hashing 650-850 MB takes a few seconds,
+    so a file already checked (same size and modification time) is not hashed again."""
+    expected = WEIGHTS_SHA256.get(subfolder) if repo == DEFAULT_REPO else None
+    if expected is None:
+        return  # another repo: nothing to compare with
+    weights = (Path(folder) / subfolder if subfolder else Path(folder)) / "model.safetensors"
+    stat = weights.stat()
+    key, mark = str(weights.resolve()), [stat.st_size, stat.st_mtime_ns, expected]
+    try:
+        cache = json.loads(VERIFIED_CACHE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cache = {}
+    if cache.get(key) == mark:
+        return
+    digest = hashlib.sha256()
+    with weights.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            digest.update(block)
+    if digest.hexdigest() != expected:
+        raise ModelIntegrityError(
+            f"The Laya model file does not match the official one ({weights}). It may be corrupted or "
+            "altered: delete that folder and download it again with: luar download"
+        )
+    cache[key] = mark
+    try:
+        VERIFIED_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        VERIFIED_CACHE.write_text(json.dumps(cache, indent=1), encoding="utf-8")
+    except OSError:
+        pass  # only a speed-up
 
 
 def local_checkpoint(repo: str, subfolder: str | None) -> str | None:
@@ -112,7 +164,8 @@ def local_checkpoint(repo: str, subfolder: str | None) -> str | None:
     prefix = f"{subfolder}/" if subfolder else ""
     try:
         path = Path(snapshot_download(
-            repo, local_files_only=True, allow_patterns=[prefix + f for f in MODEL_FILES],
+            repo, revision=_revision(repo), local_files_only=True,
+            allow_patterns=[prefix + f for f in MODEL_FILES],
         ))
     except Exception:  # not in the cache (or no huggingface_hub cache at all)
         return None
@@ -122,17 +175,20 @@ def local_checkpoint(repo: str, subfolder: str | None) -> str | None:
     return None
 
 
-def download_checkpoints(repo: str = "convaiinnovations/laya",
+def download_checkpoints(repo: str = DEFAULT_REPO,
                          checkpoints: tuple[str, ...] = ("multilingual", "english")) -> list[str]:
-    """Fetch the checkpoints so later runs never need the network. Returns the local folders."""
+    """Fetch the checkpoints (pinned revision, verified hash) so later runs never need the network.
+    Returns the local folders."""
     import_laya()
     from huggingface_hub import snapshot_download
 
     folders = []
     for name in checkpoints:
-        prefix = f"{CHECKPOINTS[name]}/" if CHECKPOINTS[name] else ""
-        path = snapshot_download(repo, allow_patterns=[prefix + f for f in MODEL_FILES])
-        folders.append(str(Path(path) / CHECKPOINTS[name]) if CHECKPOINTS[name] else path)
+        subfolder = CHECKPOINTS[name]
+        prefix = f"{subfolder}/" if subfolder else ""
+        path = snapshot_download(repo, revision=_revision(repo), allow_patterns=[prefix + f for f in MODEL_FILES])
+        verify_weights(path, subfolder, repo)
+        folders.append(str(Path(path) / subfolder) if subfolder else path)
     return folders
 
 
@@ -166,9 +222,16 @@ class LayaBackend:
             subfolder = CHECKPOINTS[self.checkpoint]
             if subfolder:
                 kwargs["subfolder"] = subfolder
-            # once downloaded, load from disk: laya.load(repo) asks the Hub for updates on every run
+            # load from disk (laya.load(repo) would ask the Hub for updates on every run); the first
+            # run downloads the pinned revision; either way the weights must match the published hash
+            path = local_checkpoint(self.repo, subfolder)
+            if path is None:
+                name = next(k for k, v in CHECKPOINTS.items() if v == subfolder and k != "auto")
+                path = download_checkpoints(self.repo, (name,))[0]
+                path = str(Path(path).parent) if subfolder else path
+            verify_weights(path, subfolder, self.repo)
             try:
-                self._agent = laya.load(local_checkpoint(self.repo, subfolder) or self.repo, **kwargs)
+                self._agent = laya.load(path, **kwargs)
             except OSError as e:
                 if is_library_error(e):  # laya imports PyTorch lazily, here
                     raise library_error(e) from e

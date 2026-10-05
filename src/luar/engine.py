@@ -9,6 +9,7 @@ import pandas as pd
 
 from .backends.base import Answer, Backend, Progress
 from .questions import EXPERIMENTAL_TYPES, Question, validate_questions
+from .safety import MANIPULATION, SensitiveDataError, describe_sensitive, manipulation_signals, scan_sensitive
 from .tables import TableInfo, output_paths, read_table, write_table
 
 DEFAULT_THRESHOLD = 0.7
@@ -32,6 +33,8 @@ class Result:
     seconds: float = 0.0
     table_path: Path | None = None
     summary_path: Path | None = None
+    sensitive: dict[str, int] = field(default_factory=dict)  # kind of personal data -> rows
+    manipulation_rows: int = 0
 
 
 def confidence_col(qid: str) -> str:
@@ -92,10 +95,12 @@ def classify(
     backend: Backend,
     threshold: float = DEFAULT_THRESHOLD,
     progress: Progress | None = None,
+    allow_sensitive: bool = False,
 ) -> Result:
     """Return a copy of `df` with, per question, `<id>` and `<id>_confidence`,
     plus `needs_review` / `review_reasons` for rows below the confidence threshold
-    (experimental `score` answers only count when they are missing)."""
+    (experimental `score` answers only count when they are missing) or that look written to
+    steer the model. Refuses columns holding personal data unless `allow_sensitive` is set."""
     validate_questions(questions)
     _check_columns(df, questions)
     if not 0 <= threshold <= 1:
@@ -103,6 +108,12 @@ def classify(
 
     started = datetime.now()
     texts = build_texts(df, text_columns)
+    sensitive = scan_sensitive(texts)
+    if sensitive and not allow_sensitive:
+        raise SensitiveDataError(
+            f"The column(s) to read hold personal data ({describe_sensitive(sensitive)}). Process them "
+            "only if you are allowed to: confirm it to continue, or remove that data from the file."
+        )
     filled = [i for i, t in enumerate(texts) if t]
     answers: list[dict[str, Answer] | None] = [None] * len(texts)
     if filled:
@@ -121,6 +132,7 @@ def classify(
         out[q.id] = values
         out[confidence_col(q.id)] = confs
 
+    manipulated = 0
     for i, a in enumerate(answers):
         if a is None:
             why = ["empty text"]
@@ -133,6 +145,11 @@ def classify(
                 or (q.type not in EXPERIMENTAL_TYPES
                     and (a[q.id].confidence is None or a[q.id].confidence < threshold))
             ]
+            # text written to steer the answer: a person should look, whatever the confidence
+            signals = manipulation_signals(texts[i], questions)
+            if signals:
+                manipulated += 1
+                why.append(f"{MANIPULATION} ({'; '.join(signals)})")
         review.append("yes" if why else "")
         reasons.append(", ".join(why))
     out[REVIEW_COL] = review
@@ -146,6 +163,8 @@ def classify(
         backend_name=getattr(backend, "name", type(backend).__name__),
         started=started,
         seconds=(datetime.now() - started).total_seconds(),
+        sensitive=dict(sensitive),
+        manipulation_rows=manipulated,
     )
 
 
@@ -173,11 +192,12 @@ def run_file(
     out_dir: str | Path | None = None,
     sheet: str | int | None = None,
     progress: Progress | None = None,
+    allow_sensitive: bool = False,
 ) -> Result:
     """Read `path`, classify it and write `<name>_luar.<ext>` + `<name>_luar_summary.md`.
     The source file is never modified."""
     df, info = read_table(path, sheet=sheet)
-    result = classify(df, text_columns, questions, backend, threshold, progress)
+    result = classify(df, text_columns, questions, backend, threshold, progress, allow_sensitive)
     return save_result(result, info, out_dir)
 
 

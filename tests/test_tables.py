@@ -63,3 +63,18 @@ def test_rejects_old_xls(tmp_path):
     p.write_bytes(b"")
     with pytest.raises(ValueError, match=".xlsx"):
         read_table(p)
+
+
+def test_unquoted_separator_inside_text_is_refused_not_cut(tmp_path):
+    src = tmp_path / "bad.csv"
+    src.write_text("avaliacao\nProduto chegou quebrado, quero devolver.\nAdorei\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Line 2 .* more fields than the header"):
+        read_table(src)
+
+
+def test_quoted_separator_inside_text_is_fine(tmp_path):
+    src = tmp_path / "ok.csv"
+    src.write_text('avaliacao\n"Produto chegou quebrado, quero devolver."\nAdorei\n', encoding="utf-8")
+    df, _ = read_table(src)
+    assert df["avaliacao"].tolist() == ["Produto chegou quebrado, quero devolver.", "Adorei"]
+    assert list(df.index) == [0, 1]

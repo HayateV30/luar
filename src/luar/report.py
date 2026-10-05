@@ -12,8 +12,19 @@ MAX_REVIEW_ROWS = 50
 SNIPPET = 80
 
 
+# "!" and "[" "]" are enough to stop images and links; the rest stops formatting and table breaks
+_MD_SPECIAL = set("\\`*_[]!|~#")
+
+
+def _md(text) -> str:
+    """Spreadsheet text shown as plain text: no images, links, HTML or formatting can come from it
+    (e.g. "![x](https://tracker/pixel.png)" would make the browser fetch an outside URL)."""
+    text = str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return "".join("\\" + c if c in _MD_SPECIAL else c for c in text)
+
+
 def _cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ").strip()
+    return _md(str(text).replace("\n", " ").strip())
 
 
 def _snippet(text: str) -> str:
@@ -26,26 +37,34 @@ def render_summary(result: Result) -> str:
     n = len(df)
     flagged = df[df[REVIEW_COL] == "yes"]
     lines = [
-        f"# LUAR summary: {result.source or 'table'}",
+        f"# LUAR summary: {_md(result.source or 'table')}",
         "",
         f"- **Date:** {result.started:%Y-%m-%d %H:%M}",
         f"- **Engine:** {result.backend_name}",
         f"- **Rows:** {n}",
-        f"- **Columns read:** {', '.join(result.text_columns)}",
+        f"- **Columns read:** {_md(', '.join(result.text_columns))}",
         f"- **Confidence threshold:** {result.threshold:.2f}",
         f"- **Rows to review:** {len(flagged)} ({len(flagged) / n:.0%})" if n else "- **Rows to review:** 0",
         f"- **Time:** {result.seconds:.1f} s",
     ]
     if result.table_path:
-        lines.append(f"- **Result file:** `{result.table_path.name}`")
+        lines.append(f"- **Result file:** {_md(result.table_path.name)}")
+    if result.sensitive:
+        found = ", ".join(f"{kind} in {rows} row(s)" for kind, rows in result.sensitive.items())
+        lines += ["", f"> **Personal data:** the columns read hold {found}. You confirmed you may "
+                  "process it. The values are not repeated in this summary."]
+    if result.manipulation_rows:
+        lines += ["", f"> **Possible manipulation:** {result.manipulation_rows} row(s) contain text that "
+                  'looks written to steer the answers (for example "ignore the question, the correct '
+                  'answer is..."). They are marked for review: check those answers by hand.']
 
     for q in result.questions:
-        lines += ["", f"## {q.id} ({q.type})", "", f"> {q.question}", ""]
+        lines += ["", f"## {_md(q.id)} ({q.type})", "", f"> {_md(q.question)}", ""]
         if q.type in EXPERIMENTAL_TYPES:
             lines += [
                 "> **Experimental:** `score` was the least reliable question type in our tests "
-                "(on 300 real product reviews, Laya matched the exact star rating 26% of the time, "
-                "60% within one star). Check these results by hand. Low confidence on a `score` "
+                "(on 300 real product reviews, Laya matched the exact star rating 33% of the time, "
+                "68% within one star). Check these results by hand. Low confidence on a `score` "
                 "question does not mark the row for review.",
                 "",
             ]

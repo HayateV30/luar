@@ -30,6 +30,7 @@ src/luar/
   tables.py      CSV/XLSX reading (separator and encoding sniffing) and never-overwrite writing
   engine.py      runs the questions over rows, confidence threshold, needs_review, accuracy
   report.py      Markdown summary
+  safety.py      manipulation alerts and personal-data checks on the spreadsheet text
   backends/      the decision engines
     base.py            Answer, Backend protocol, BackendError
     laya_backend.py    Laya (a required dependency), loaded from the local cache once downloaded
@@ -74,3 +75,17 @@ when it is there. Keep it that way: `tests/test_offline.py` fails any connection
 2. Commit, push, and create a GitHub release with a `vX.Y.Z` tag.
 3. The `Publish to PyPI` workflow runs the fast tests, builds the package and uploads it using
    PyPI Trusted Publishing (no token involved).
+
+## Security
+
+The threat model and the protections are described in the user manual (section 10, "Security and
+privacy"). When you change code, keep these properties:
+
+- Text from a spreadsheet is data, never code or markup: write it to `.xlsx` as text
+  (`tables.write_table`) and pass it through `report._md` before it reaches the summary.
+- Personal data is only read after the user confirms (`allow_sensitive`); reports give counts, never values.
+- Only load model weights that match `WEIGHTS_SHA256` (`backends/laya_backend.verify_weights`).
+- Copies of user data go under `app.WORK_DIR` (cleaned on exit), never next to the code.
+- `tests/test_safety.py` covers each of these; the manipulation patterns in `safety.py` were checked
+  against 600 real texts (no false alarm). Re-run that check (see `bench/`) when you change them.
+
