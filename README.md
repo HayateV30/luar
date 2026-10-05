@@ -116,6 +116,11 @@ not reachable from the internet. Keep the terminal open while you use LUAR; clos
 
 > If `luar` is not recognized, or Windows blocks it, use `python -m luar ui` instead.
 
+**On Windows, open it with a double-click:** save [`LUAR.bat`](https://raw.githubusercontent.com/HayateV30/luar/main/LUAR.bat) (right-click the link →
+*Save link as*) anywhere you like, for example on your desktop, and double-click it whenever you
+want to use LUAR. It runs `python -m luar ui` for you; a black window opens next to the browser.
+Keep that window open while you work, and close it to stop LUAR.
+
 ### Step 2: load your spreadsheet
 
 Drag your file onto the **CSV or XLSX** box (or click it to choose the file).
@@ -407,8 +412,9 @@ get better answers, rewrite the questions (section 5) and measure accuracy with 
 (section 7).
 
 **`luar` is not recognized, or Windows says access is denied.**
-Use `python -m luar ui` (or `python -m luar run …`). Some Windows security settings block small
-program files that pip creates; going through `python` avoids that.
+Use `python -m luar ui` (or `python -m luar run …`), or double-click [`LUAR.bat`](https://raw.githubusercontent.com/HayateV30/luar/main/LUAR.bat), which
+does the same. Some Windows security settings block small program files that pip creates; going
+through `python` avoids that.
 
 **"Old .xls files are not supported".**
 Open the file in Excel and save it as `.xlsx` (or `.csv`).

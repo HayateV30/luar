@@ -119,6 +119,11 @@ fica acessível pela internet. Deixe o terminal aberto enquanto usa a LUAR; fech
 
 > Se o comando `luar` não for reconhecido, ou o Windows bloquear, use `python -m luar ui`.
 
+**No Windows, abra com dois cliques:** salve o [`LUAR.bat`](https://raw.githubusercontent.com/HayateV30/luar/main/LUAR.bat) (botão direito no link →
+*Salvar link como*) onde preferir, por exemplo na Área de Trabalho, e dê dois cliques nele sempre
+que quiser usar a LUAR. Ele roda `python -m luar ui` por você; uma janela preta abre junto com o
+navegador. Deixe essa janela aberta enquanto trabalha e feche-a para encerrar a LUAR.
+
 ### Passo 2: carregue a planilha
 
 Arraste o arquivo para a caixa **CSV or XLSX** (ou clique nela para escolher o arquivo).
@@ -408,8 +413,9 @@ melhorar as respostas, reescreva as perguntas (seção 5) e meça o acerto com c
 (seção 7).
 
 **O comando `luar` não é reconhecido, ou o Windows diz "acesso negado".**
-Use `python -m luar ui` (ou `python -m luar run …`). Algumas configurações de segurança do Windows
-bloqueiam os pequenos executáveis que o pip cria; passar pelo `python` evita isso.
+Use `python -m luar ui` (ou `python -m luar run …`), ou dê dois cliques no [`LUAR.bat`](https://raw.githubusercontent.com/HayateV30/luar/main/LUAR.bat),
+que faz o mesmo. Algumas configurações de segurança do Windows bloqueiam os pequenos executáveis que
+o pip cria; passar pelo `python` evita isso.
 
 **"Old .xls files are not supported".**
 Abra o arquivo no Excel e salve como `.xlsx` (ou `.csv`).
