@@ -53,3 +53,18 @@ def test_every_example_set_loads_and_matches_its_answer_key():
             assert f"expected_{q.id}" in df.columns, f"{name}: no expected_{q.id}"
         file, rows = app.on_example(name)
         assert [r[0] for r in rows] == [q.id for q in load_questions(EXAMPLES / questions)]
+
+
+def test_background_has_four_aligned_crosses_shrinking_to_the_back():
+    import re
+
+    from luar.app import CSS, background_html
+
+    html = background_html()
+    assert html.count('class="cross"') == 4 and html.count('class="arm"') == 16
+    radii = [int(r) for r in re.findall(r"--R: (\d+)px", html)]
+    assert radii == sorted(radii, reverse=True) and len(set(radii)) == 4  # 1st largest, 4th smallest
+    assert 'aria-hidden="true"' in html
+    # never in the way: behind the page, not clickable, still when the OS asks for less motion
+    assert "pointer-events: none" in CSS and "prefers-reduced-motion" in CSS
+    assert "body:has(.pending)" in CSS  # paused while the app works

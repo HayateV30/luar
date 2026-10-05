@@ -92,6 +92,26 @@ CSS = """
   #luar-header > :first-child, #luar-actions { grid-column: 1; justify-self: center; justify-content: center; }
 }
 .luar-step h3 { margin-top: 8px; }
+/* background: four crosses of light points in a row along the X axis, turning together around it
+   (inspired by an old TV intro); behind everything, never clickable, still when motion is reduced */
+#luar-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; perspective: 900px;
+  perspective-origin: 15% 85%; --dot: 15, 23, 42; --a: 0.30; --b: 4;
+  -webkit-mask: radial-gradient(circle at 14% 86%, #000 0, #000 210px, transparent 540px);
+  mask: radial-gradient(circle at 14% 86%, #000 0, #000 210px, transparent 540px); }
+.dark #luar-bg { --dot: 255, 255, 255; }
+.gradio-container > * { position: relative; z-index: 1; }
+#luar-bg .cam { position: absolute; left: 16%; bottom: 16%; transform-style: preserve-3d;
+  transform: rotateX(-22deg) rotateY(58deg); }
+#luar-bg .spin { position: absolute; transform-style: preserve-3d; animation: luar-spin 120s linear infinite; }
+#luar-bg .cross { position: absolute; transform-style: preserve-3d; }
+#luar-bg .arm { position: absolute; left: 0; top: calc(var(--w) / -2); height: var(--w);
+  width: calc(var(--R) - var(--h)); transform-origin: 0 50%; filter: blur(var(--bl));
+  background: radial-gradient(circle, rgba(var(--dot), var(--o)) 0 var(--r), transparent calc(var(--r) + 1.5px))
+    left center / var(--g) var(--w) repeat-x; }
+@keyframes luar-spin { from { transform: rotateX(0); } to { transform: rotateX(360deg); } }
+/* still while the app works (Gradio marks running outputs .pending, also on errors): CPU for Laya */
+body:has(.pending) #luar-bg .spin { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { #luar-bg .spin { animation: none; } }
 #luar-run { min-height: 48px; font-size: 1rem; }
 button, [role="button"], label:has(input) { cursor: pointer; }
 :focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
@@ -237,6 +257,35 @@ def on_run(file, columns, table, threshold, checkpoint, progress=gr.Progress()):
     return result.table, render_summary(result), [str(result.table_path), str(result.summary_path)]
 
 
+# Background geometry (see CSS above): each section is 15% smaller than the one in front of it
+BG_SECTIONS = 4
+BG_SHRINK = 0.15
+BG_GAP = 70        # px between sections along the X axis
+BG_HOLE = 0.06     # gap at the center of each cross, as a share of the arm length
+BG_BLUR = (1, 0.45, 0.15, 0)        # front section blurred, back ones sharp (depth of field)
+BG_OPACITY = (1, 0.85, 0.72, 0.6)
+
+
+def background_html() -> str:
+    """Four aligned crosses of four arms each, from the largest (front) to the smallest (back)."""
+    crosses = []
+    for i in range(BG_SECTIONS):
+        f = (1 - BG_SHRINK) ** i
+        radius = round(230 * f)
+        style = (
+            f"transform: translateX({i * BG_GAP}px) rotateY(90deg); --R: {radius}px; "
+            f"--h: {round(radius * BG_HOLE)}px; --r: {6 * f:.1f}px; --w: {round(16 * f)}px; "
+            f"--g: {round(30 * f)}px; --o: calc(var(--a) * {BG_OPACITY[i]}); "
+            f"--bl: calc(var(--b) * {BG_BLUR[i]}px)"
+        )
+        arms = "".join(
+            f'<div class="arm" style="transform: rotate({-90 + 90 * j}deg) translateX(var(--h))"></div>'
+            for j in range(4)
+        )
+        crosses.append(f'<div class="cross" style="{style}">{arms}</div>')
+    return f'<div id="luar-bg" aria-hidden="true"><div class="cam"><div class="spin">{"".join(crosses)}</div></div></div>'
+
+
 def readme_markdown(path: Path) -> str:
     """The README with its screenshots pointed at the local files, so the manual works offline."""
     local = f"/gradio_api/file={quote(IMAGES.as_posix())}/"
@@ -245,6 +294,7 @@ def readme_markdown(path: Path) -> str:
 
 def build() -> gr.Blocks:
     with gr.Blocks(title="LUAR", analytics_enabled=False) as demo:
+        gr.HTML(background_html(), padding=False, container=False)
         readmes = {lang: path for lang, path in READMES.items() if path.exists()}
         with gr.Row(elem_id="luar-header"):
             gr.Markdown("# LUAR")
