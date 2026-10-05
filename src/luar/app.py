@@ -286,7 +286,9 @@ def build() -> gr.Blocks:
                 datatype=["str", "str", "str", "str"],
                 value=[["", "choice", "", ""]],
                 interactive=True,
-                row_count=(1, "dynamic"),
+                # An int means (1, "dynamic"): rows can be added. Tuples are deprecated for row_count,
+                # and row_limits/column_limits are not implemented yet (Gradio 6.29).
+                row_count=1,
                 column_count=(4, "fixed"),
                 wrap=True,
                 column_widths=["12%", "10%", "38%", "40%"],

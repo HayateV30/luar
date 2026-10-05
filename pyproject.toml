@@ -34,7 +34,7 @@ Issues = "https://github.com/HayateV30/luar/issues"
 Changelog = "https://github.com/HayateV30/luar/releases"
 
 [project.optional-dependencies]
-ui = ["gradio>=5.0"]
+ui = ["gradio>=6.0"]  # row_limits/column_limits on gr.Dataframe
 laya = []  # Laya is now a required dependency; kept so `luar[laya]` still installs cleanly
 all = ["luar[ui]"]
 dev = ["pytest>=8"]
