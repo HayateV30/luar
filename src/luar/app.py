@@ -507,12 +507,15 @@ def _build() -> gr.Blocks:
                     for key, path in (("sample_csv", SAMPLE_CSV), ("sample_json", SAMPLE_QUESTIONS))
                 ]
         tagline = gr.Markdown(t("tagline"), elem_id="luar-tagline")
-        with gr.Sidebar(label=t("readme"), open=False, position="right", width="min(760px, 92vw)") as manual:
-            with gr.Tabs(selected="en") as readme_tabs:
-                for code, (tab, path) in readmes.items():
-                    with gr.Tab(tab, id=code):
-                        gr.Markdown(readme_markdown(path))
-        readme_btn.click(lambda: gr.Sidebar(open=True), None, manual)
+        manual_parts = []  # the sidebar and its tabs; a wheel has no manual, so neither exists
+        if readmes:
+            with gr.Sidebar(label=t("readme"), open=False, position="right", width="min(760px, 92vw)") as manual:
+                with gr.Tabs(selected="en") as readme_tabs:
+                    for code, (tab, path) in readmes.items():
+                        with gr.Tab(tab, id=code):
+                            gr.Markdown(readme_markdown(path))
+            readme_btn.click(lambda: gr.Sidebar(open=True), None, manual)
+            manual_parts = [manual, readme_tabs]
         laya_missing = gr.Markdown(t("laya_missing", hint=INSTALL_HINT), visible=not laya_installed())
         source = gr.State()
         file_info = gr.State()  # what on_file found, to show its status line in either language
@@ -581,8 +584,8 @@ def _build() -> gr.Blocks:
                     gr.update(value=t("readme")),
                     *[gr.update(label=t(key)) for key in ("sample_csv", "sample_json")],
                     gr.update(value=t("tagline")),
-                    gr.update(label=t("readme")),
-                    gr.update(selected=code if code in readmes else next(iter(readmes), None)),
+                    *([gr.update(label=t("readme")),
+                       gr.update(selected=code if code in readmes else next(iter(readmes)))] if readmes else []),
                     gr.update(value=t("laya_missing", hint=INSTALL_HINT)),
                     *[gr.update(value=step_heading(step)) for step in headings],
                     gr.update(label=t("upload")),
@@ -605,7 +608,7 @@ def _build() -> gr.Blocks:
                 ]
 
         relabelled = [
-            lang_btn, readme_btn, *sample_btns, tagline, manual, readme_tabs, laya_missing,
+            lang_btn, readme_btn, *sample_btns, tagline, *manual_parts, laya_missing,
             *headings.values(), upload, status, columns, allow_sensitive, example, questions, question_help,
             q_upload, q_save, q_file, threshold, checkpoint, run, downloads, summary_tab, table_tab,
         ]

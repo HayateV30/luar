@@ -111,6 +111,17 @@ def test_the_page_builds_and_relabels_in_both_languages():
     assert "3 rows, 2 columns" in repr(en)
 
 
+def test_an_install_without_the_manual_has_no_sidebar(monkeypatch, tmp_path):
+    """The READMEs ship with the repo, not the wheel: no empty panel, no empty tabs for the browser to choke on."""
+    monkeypatch.setattr(app, "READMES", {"en": ("English", tmp_path / "missing.md")})
+    demo = app.build()
+    kinds = [c["type"] for c in demo.config["components"]]
+    assert "sidebar" not in kinds
+    assert kinds.count("tabs") == 1  # the results, and it has tabs in it
+    relabel = next(fn for fn in demo.fns.values() if getattr(fn.fn, "__name__", "") == "relabel")
+    assert len(relabel.fn("pt", app.questions_frame([]), None, None, "auto")) == len(relabel.outputs)
+
+
 def test_messages_follow_the_chosen_language():
     with pytest.raises(gr.Error, match="Ainda não há perguntas") as e:
         app.on_save_questions([["", "choice", "", ""]], "pt")
