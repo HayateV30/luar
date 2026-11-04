@@ -213,14 +213,14 @@ The quality of the answers depends mostly on how the questions are written.
 | `score` ⚠️ | the answer is a **level on a scale** | one of your levels, in order from lowest to highest | *How serious is the problem?* none / minor / major |
 
 > ⚠️ **`score` is experimental.** It was the least reliable type in our tests: on 300 real product
-> reviews, Laya matched the customer's own star rating (1 to 5) only 26% of the time, although 60%
+> reviews, Laya matched the customer's own star rating (1 to 5) only 33% of the time, although 68%
 > of its answers were within one star. On an urgency scale (low / medium / high) for support
 > messages it got 3 of 12 right, and neither describing each level, nor reversing the order, nor
 > switching to `choice` fixed it: some scales are simply beyond the model. Prefer `choice` or `noul`
 > when you can (for example *"Does the message report lost money or a health risk?"* instead of an
 > urgency level), describe each level if you use `score`, and **always measure with `expected_`
-> columns** (section 7). Because its confidence is almost always low, a `score` question does not
-> mark rows for review.
+> columns** (section 7). Because its confidence is not reliable (only 44% right
+> at 0.7 or more), a `score` question does not mark rows for review.
 
 ### Tips
 
@@ -349,9 +349,9 @@ dedicated GPU ([details and script](https://github.com/HayateV30/luar/tree/main/
 | **News topic** (English, AG News, 4 topics) | `choice` | **93%** |
 | **Would recommend?** (Portuguese reviews, B2W) | `noul` | 70% |
 | **Sentiment** positive / neutral / negative (B2W) | `choice` | 68% (neutral: 5%) |
-| **Star rating 1–5** (B2W) | `score` | 26% (60% within one star) |
+| **Star rating 1–5** (B2W) | `score` | 33% (68% within one star) |
 
-- **Right when confidence is 0.7 or more:** 98% on news, 72–75% on reviews.
+- **Right when confidence is 0.7 or more:** 98% on news, 72–75% on reviews (`noul` and `choice`).
 - **Time per row:** about 1 s with one question, 1.3 s with three.
 
 <sub>Review labels come from the customers' own ratings, which do not always match the text, so they
@@ -470,7 +470,7 @@ You are probably running LUAR on a file that is already a LUAR result. Use the o
 change the question ids.
 
 **"The Laya engine could not be loaded".**
-Laya comes with LUAR, so this means a broken install. Run `pip install "laya>=0.3.21"` and open LUAR
+Laya comes with LUAR, so this means a broken install. Run `pip install "laya==0.4.22"` and open LUAR
 again.
 
 **It is slow.**

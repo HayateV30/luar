@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "luar"
-version = "0.6.0"
+version = "0.6.1"
 description = "LUAR (Local Utility for Automated Reviews): catalog spreadsheet rows with a local decision model."
 readme = "README.md"
 license = "MIT"
@@ -25,7 +25,7 @@ dependencies = [
     "pandas>=2.0",
     "openpyxl>=3.1",
     "defusedxml>=0.7",  # openpyxl uses it to read .xlsx XML safely
-    "laya>=0.3.21",
+    "laya==0.4.22",  # the version the tests and benchmarks ran on; bump it after re-running them
 ]
 
 [project.urls]
@@ -35,7 +35,10 @@ Issues = "https://github.com/HayateV30/luar/issues"
 Changelog = "https://github.com/HayateV30/luar/releases"
 
 [project.optional-dependencies]
-ui = ["gradio>=6.0"]  # row_limits/column_limits on gr.Dataframe
+ui = [
+    "gradio>=6.0",  # row_limits/column_limits on gr.Dataframe
+    "anyio>=4",  # gradio accepts 3.x but cannot build the page with it
+]
 laya = []  # Laya is now a required dependency; kept so `luar[laya]` still installs cleanly
 all = ["luar[ui]"]
 dev = ["pytest>=8"]

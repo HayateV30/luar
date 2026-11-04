@@ -10,7 +10,7 @@ from ..i18n import t
 from ..questions import Question
 from .base import Answer, BackendError, Progress
 
-INSTALL_HINT = 'pip install "laya>=0.3.21"'
+INSTALL_HINT = 'pip install "laya==0.4.22"'
 
 CHECKPOINTS = {
     "auto": None,                    # picks english or multilingual from the file's language

@@ -10,7 +10,7 @@ public datasets labeled by people. The user manual summarizes them in
 - **How the engine is run:** exactly as a user would, with `run_file` on a CSV with `expected_*`
   columns and the default confidence threshold (0.7).
 - **Machine:** Windows laptop, Intel Iris Xe (no dedicated GPU), 16 GB RAM.
-- **Version:** Laya 0.3.21 with `auto` checkpoint.
+- **Version:** Laya 0.4.22 with `auto` checkpoint. Laya 0.3.21 gave the same answers on these samples.
 
 | Dataset | Language | Questions | Labels from |
 |---|---|---|---|
@@ -28,13 +28,13 @@ the neutral and two-star cases more frequent than in the raw data.
 | AG News | topic | choice | **93%** |
 | B2W | recomenda | noul | 70% |
 | B2W | sentimento | choice | 68% |
-| B2W | estrelas | score | 26% (60% within ±1) |
+| B2W | estrelas | score | 33% (68% within ±1) |
 
 | | |
 |---|---|
-| Time per row | 1.0 s (AG News, 1 question) · 1.28 s (B2W, 3 questions) |
-| Accuracy when confidence ≥ 0.7 (share of rows) | AG News 98% (84%) · B2W 72–75% (82–83%) |
-| Expected calibration error (ECE) | AG News 0.085 · B2W 0.12–0.18 |
+| Time per row | 0.74 s (AG News, 1 question) · 1.29 s (B2W, 3 questions) |
+| Accuracy when confidence ≥ 0.7 (share of rows) | AG News 98% (84%) · B2W `noul` and `choice` 72–75% (82–83%), `score` 44% (44%) |
+| Expected calibration error (ECE) | AG News 0.085 · B2W 0.18 (`noul`, `choice`), 0.32 (`score`) |
 
 Notable findings:
 
@@ -42,8 +42,9 @@ Notable findings:
   accuracy.
 - **Sentiment:** Laya gets negative (87%) and positive (82%) right, but chose `neutral` only 3 times
   out of 60.
-- **`score` is weak:** the exact star rating was right 26% of the time (chance is 20%). Its confidence
-  was below 0.7 for 96% of the rows, which is why `score` questions no longer mark rows for review.
+- **`score` is weak:** the exact star rating was right 33% of the time (chance is 20%). Its confidence
+  is not reliable (44% right at 0.7 or more, 24% below), which is why `score`
+  questions do not mark rows for review.
 
 Full numbers, including confusion matrices: [`results/laya.json`](results/laya.json).
 

@@ -220,14 +220,14 @@ A qualidade das respostas depende principalmente de como as perguntas são escri
 | `score` ⚠️ | a resposta é **um nível numa escala** | um dos seus níveis, do mais baixo ao mais alto | *Qual a gravidade do problema?* nenhuma / leve / grave |
 
 > ⚠️ **`score` é experimental.** Foi o tipo menos confiável nos testes: em 300 avaliações reais de
-> produtos, a Laya acertou a nota que o próprio cliente deu (1 a 5 estrelas) só 26% das vezes, embora
-> 60% das respostas tenham errado por no máximo uma estrela. Numa escala de urgência (baixa / média /
+> produtos, a Laya acertou a nota que o próprio cliente deu (1 a 5 estrelas) só 33% das vezes, embora
+> 68% das respostas tenham errado por no máximo uma estrela. Numa escala de urgência (baixa / média /
 > alta) em mensagens de atendimento, acertou 3 de 12, e nem descrever cada nível, nem inverter a
 > ordem, nem trocar para `choice` resolveu: algumas escalas o modelo simplesmente não consegue medir.
 > Prefira `choice` ou `noul` quando puder (por exemplo, *"A mensagem relata prejuízo financeiro ou
 > risco à saúde?"* em vez de um nível de urgência), descreva cada nível se usar `score`, e **sempre
-> meça com colunas `expected_`** (seção 7). Como a confiança dele quase sempre é baixa, uma pergunta
-> `score` não marca linhas para revisão.
+> meça com colunas `expected_`** (seção 7). Como a confiança dele não é confiável (só 44% de
+> acerto com 0,7 ou mais), uma pergunta `score` não marca linhas para revisão.
 
 ### Dicas
 
@@ -354,9 +354,9 @@ notebook sem placa de vídeo dedicada ([detalhes e script](https://github.com/Ha
 | **Tema de notícias** (inglês, AG News, 4 temas) | `choice` | **93%** |
 | **Recomendaria?** (avaliações em português, B2W) | `noul` | 70% |
 | **Sentimento** positivo / neutro / negativo (B2W) | `choice` | 68% (neutro: 5%) |
-| **Nota de 1 a 5 estrelas** (B2W) | `score` | 26% (60% com até uma estrela de diferença) |
+| **Nota de 1 a 5 estrelas** (B2W) | `score` | 33% (68% com até uma estrela de diferença) |
 
-- **Acerto quando a confiança é 0,7 ou mais:** 98% nas notícias e 72–75% nas avaliações.
+- **Acerto quando a confiança é 0,7 ou mais:** 98% nas notícias e 72–75% nas avaliações (`noul` e `choice`).
 - **Tempo por linha:** cerca de 1 s com uma pergunta e 1,3 s com três.
 
 <sub>O gabarito das avaliações vem da nota que o próprio cliente deu, que nem sempre bate com o
@@ -476,7 +476,7 @@ original, ou mude os ids das perguntas.
 
 **"The Laya engine could not be loaded".**
 A Laya vem junto com a LUAR, então isso indica uma instalação com defeito. Rode
-`pip install "laya>=0.3.21"` e abra a LUAR de novo.
+`pip install "laya==0.4.22"` e abra a LUAR de novo.
 
 **Está lento.**
 A Laya leva de 30 a 60 segundos para carregar no início de cada sessão; depois disso processa cerca
