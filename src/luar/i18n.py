@@ -88,7 +88,7 @@ TEXTS: dict[str, dict[str, str]] = {
             "description after : (descriptions help a lot)."
         ),
         "tip_run": (
-            "Confidence threshold: answers below it mark the row needs_review. Laya model variant: auto uses "
+            "Confidence threshold: answers below it mark the row needs_review. Engine: Laya is the default, THX-01 is optional. Laya model variant: auto uses "
             "the English model for English files and the multilingual one for the rest. The first run "
             "downloads the model; later runs work offline."
         ),
@@ -144,6 +144,10 @@ TEXTS: dict[str, dict[str, str]] = {
         # --- step 3 -------------------------------------------------------------------------
         "threshold": "Confidence threshold",
         "threshold_info": "Answers below it mark the row as needs_review",
+        "engine": "Engine",
+        "engine_info": "Laya is the default. THX-01 is optional: pip install \"luar[thx]\"; about 650 MB on first use",
+        "engine_laya": "Laya (default)",
+        "engine_thx": "THX-01 (optional)",
         "checkpoint": "Laya model variant",
         "checkpoint_info": "auto: English files use the English model, others the multilingual one",
         "ckpt_auto": "auto",
@@ -227,6 +231,11 @@ TEXTS: dict[str, dict[str, str]] = {
         # --- backends -----------------------------------------------------------------------
         "b_unknown_checkpoint": "Unknown checkpoint {name}; use one of {names}.",
         "b_laya_missing": "The Laya engine could not be loaded. Reinstall it with: {hint}",
+        "b_thx_missing": "The THX-01 engine is optional and is not installed. Install it with: {hint}",
+        "b_thx_integrity": (
+            "The THX-01 model file does not match the official one ({path}). It may be corrupted or altered: "
+            "delete that folder and download it again with: luar download thx-01"
+        ),
         "b_app_control": (
             "Windows blocked one of PyTorch's files (Application Control, WinError 4551), so the Laya "
             "engine could not start. This can happen just once: close LUAR and open it again. If it keeps "
@@ -324,7 +333,7 @@ TEXTS: dict[str, dict[str, str]] = {
             "opcional depois de : (as descrições ajudam muito)."
         ),
         "tip_run": (
-            "Limite de confiança: respostas abaixo dele marcam a linha como needs_review. Variante do modelo "
+            "Limite de confiança: respostas abaixo dele marcam a linha como needs_review. Motor: a Laya é o padrão, o THX-01 é opcional. Variante do modelo "
             "Laya: auto usa o modelo inglês para arquivos em inglês e o multilíngue para os demais. A "
             "primeira execução baixa o modelo; as seguintes funcionam sem internet."
         ),
@@ -381,6 +390,10 @@ TEXTS: dict[str, dict[str, str]] = {
         # --- etapa 3 ------------------------------------------------------------------------
         "threshold": "Limite de confiança",
         "threshold_info": "Respostas abaixo dele marcam a linha como needs_review",
+        "engine": "Motor",
+        "engine_info": "A Laya é o padrão. O THX-01 é opcional: pip install \"luar[thx]\"; cerca de 650 MB no primeiro uso",
+        "engine_laya": "Laya (padrão)",
+        "engine_thx": "THX-01 (opcional)",
         "checkpoint": "Variante do modelo Laya",
         "checkpoint_info": "auto: arquivos em inglês usam o modelo inglês; os demais, o multilíngue",
         "ckpt_auto": "auto",
@@ -467,6 +480,11 @@ TEXTS: dict[str, dict[str, str]] = {
         # --- motores ------------------------------------------------------------------------
         "b_unknown_checkpoint": "Variante desconhecida {name}; use uma destas: {names}.",
         "b_laya_missing": "Não foi possível carregar o motor Laya. Reinstale com: {hint}",
+        "b_thx_missing": "O motor THX-01 é opcional e não está instalado. Instale com: {hint}",
+        "b_thx_integrity": (
+            "O arquivo do modelo THX-01 não confere com o oficial ({path}). Ele pode estar corrompido ou alterado: "
+            "apague essa pasta e baixe de novo com: luar download thx-01"
+        ),
         "b_app_control": (
             "O Windows bloqueou um dos arquivos do PyTorch (Controle de Aplicativos, WinError 4551), e o "
             "motor Laya não pôde iniciar. Isso pode acontecer uma vez só: feche a LUAR e abra de novo. Se "

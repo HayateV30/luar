@@ -48,11 +48,34 @@ Notable findings:
 
 Full numbers, including confusion matrices: [`results/laya.json`](results/laya.json).
 
+## THX-01, the optional engine
+
+Same samples, questions and machine, with `thx01` 1.0.0 and the weights at revision `b323afc`:
+
+| Dataset | Question | Type | Accuracy | ECE | Accuracy at confidence ≥ 0.7 (share of rows) |
+|---|---|---|---:|---:|---|
+| AG News | topic | choice | 91% | 0.027 | 93% (95%) |
+| B2W | recomenda | noul | 82% | 0.033 | 89% (79%) |
+| B2W | sentimento | choice | 72% (neutral: 10 of 60) | 0.025 | 82% (67%) |
+| B2W | estrelas | score | 45% (93% within ±1) | 0.17 | 59% (25%) |
+
+- **Time per row, model loading included:** 0.34 s (AG News), 1.06 s (B2W). Without loading, on B2W:
+  THX-01 0.62 s, Laya 1.16 s.
+- **Peak memory** of the process (Windows peak working set) on 300 B2W rows: THX-01 4.5 GB, reached
+  while loading; Laya (multilingual) 2.5 GB. Measured once, each engine in its own process.
+- **Rows marked for review:** AG News 5%, B2W 44%.
+- With 300 rows, the differences from Laya in AG News and sentiment may be chance.
+- LUAR calls `predict_batch`. Its answers were identical to `thx01`'s `decide` on all 1,200 answers
+  (confidence differs by at most 0.0001).
+
+Full numbers: [`results/thx.json`](results/thx.json).
+
 ## Running it yourself
 
 ```bash
 pip install -e ".[all]" pyarrow
 python bench/evaluate.py --data-dir <a folder for the downloads> --rows 300
+python bench/evaluate.py --data-dir <a folder for the downloads> --rows 300 --engines thx
 ```
 
 The script downloads the two datasets (49 MB + 1.2 MB) into `--data-dir`. They are not included in

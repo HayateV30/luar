@@ -87,8 +87,8 @@ Open a terminal and run:
 ```bash
 pip install "luar[all]"
 ```
-Installs LUAR with Laya and the web interface. (`pip install luar`, without `[all]`, installs only
-the command line, still with Laya.)
+Installs LUAR with Laya, the web interface and the optional THX-01 engine (section 8). (`pip install
+luar`, without `[all]`, installs only the command line, still with Laya.)
 
 To have LUAR ready to use **without internet**, download the Laya models right after installing:
 
@@ -180,8 +180,10 @@ the easiest way to manage many of them (format in [section 5](#questions-file-fo
 
 - **Confidence threshold** (default `0.7`): any answer below this is marked `needs_review`. Raise
   it to review more rows, lower it to review fewer.
+- **Engine**: leave it on Laya, the default, unless you want to try THX-01, the optional engine
+  ([section 8](#8-how-accurate-is-laya)).
 - **Laya model variant**: leave it on `auto`. It picks the English model for English files and the
-  multilingual model for everything else.
+  multilingual model for everything else. It only appears with Laya selected.
 
 Click **Run**. If you did not run `luar download` when installing, the first run downloads Laya's
 model, which takes a few minutes; later runs start in seconds.
@@ -361,6 +363,33 @@ Accuracy depends a lot on the question type and your data: clear choice or yes/n
 scales (`score`) and "middle" options do poorly. So **measure on your sample with `expected_`
 columns** (section 7) before trusting a large run.
 
+### THX-01, the optional engine
+
+Laya is LUAR's default. [THX-01](https://huggingface.co/doofz/THX-01) (by HAL-X AI) is an optional
+second engine that also runs only on your computer. It answers the same `choice`, `noul` and `score`
+questions. On the same samples and laptop:
+
+| | Laya | THX-01 |
+|---|---|---|
+| **News topic** (English, AG News) | **93%** | 91% |
+| **Would recommend?** (B2W) | 70% | **82%** |
+| **Sentiment** (B2W) | 68% (neutral: 5%) | 72% (neutral: 17%) |
+| **Star rating 1–5** (B2W) | 33% (68% within one star) | **45%** (93% within one star) |
+| **Calibration error** (ECE, lower is better; B2W) | 0.18 / 0.18 / 0.32 | **0.03 / 0.03 / 0.17** |
+| **Rows marked for review** (B2W) | 32% | 44% |
+| **Time per row** (B2W, three questions) | 1.3 s | 1.1 s |
+| **Peak memory** (B2W, 300 rows) | about 2.5 GB | about 4.5 GB |
+| **Download** | about 1.5 GB (two models) | about 650 MB |
+
+With 300 rows, the differences in news topic and sentiment may be chance. Those in recommendation,
+stars and calibration are clear. Portuguese is not among the languages THX-01's authors list for its
+training, so these tests are the evidence we have for it: try both on your own sample with `expected_`
+columns.
+
+To use it, install `pip install "luar[thx]"` (`luar[all]` already includes it), then choose it under
+**Engine** or run `luar run … --engine thx`. To download the model ahead of time and work offline:
+`luar download thx-01`.
+
 ---
 
 ## 9. Using the command line
@@ -376,7 +405,8 @@ Lists the columns of a file with a sample value from each.
 ```bash
 luar download
 ```
-Downloads Laya's models (multilingual and English) so LUAR works offline afterwards.
+Downloads Laya's models (multilingual and English) so LUAR works offline afterwards. `luar download
+thx-01` downloads the optional THX-01 model.
 
 ```bash
 luar run my_file.xlsx -q questions.json -c review
@@ -392,6 +422,7 @@ Labels the file. The result and the summary are saved **next to the original fil
 | `-t`, `--threshold` | Confidence threshold, from 0 to 1 (default `0.7`). |
 | `-o`, `--out-dir` | Save the results in another folder. |
 | `--sheet` | Excel sheet to read (default: the first). |
+| `--engine` | `laya` (default) or `thx`, the optional engine (section 8). |
 | `--checkpoint` | Laya model variant: `auto` (default), `multilingual` or `english`. |
 | `--device` | `cpu` or `cuda` (default: automatic). |
 | `--allow-sensitive-data` | Read columns that hold personal data (CPF, CNPJ, cards, e-mails, phones). Only if you are allowed to process it. |
@@ -421,7 +452,7 @@ other people, so it protects you from what they might contain:
 | **Formulas stay text** | A cell whose text starts with `=` (for example `=HYPERLINK(...)`) is written to the result `.xlsx` as text, never as a live formula. |
 | **Plain-text summary** | Text copied from the spreadsheet into the summary can't become an image, a link or HTML, so opening the summary never makes your browser contact a website. |
 | **Safe file reading** | `.xlsx` files are read with protection against malicious XML (`defusedxml`); macros in `.xlsm` files are never run and are not copied to the result. Files that unpack to more than 300 MB are refused. The web interface takes files up to 50 MB and 20,000 rows (use the command line for bigger ones). A CSV row with more fields than the header is refused instead of being silently cut. |
-| **Verified model** | LUAR downloads a fixed version of Laya and checks its files against the published SHA-256 fingerprints before loading; a corrupted or altered model is refused. |
+| **Verified model** | LUAR downloads a fixed version of Laya (and of THX-01, if you use it) and checks its files against the published SHA-256 fingerprints before loading; a corrupted or altered model is refused. |
 | **Your data is cleaned up** | Result files and copies of your uploads are deleted when you close LUAR (leftovers from a crash after a day). Download your results before closing. |
 | **Local only** | The interface only answers on `127.0.0.1` and refuses requests coming from other websites. |
 
@@ -513,4 +544,6 @@ pip install -e ".[all]"
 
 **License.** MIT for LUAR's code. Laya (the package and the model weights) is a separate project
 with its own license; check its [model card](https://huggingface.co/convaiinnovations/laya) before
-redistributing it.
+redistributing it. THX-01 (the optional engine, © HAL-X AI) is also a separate project, under the
+Apache-2.0 license; it includes the mmBERT encoder (MIT). LUAR does not ship either model: they are
+downloaded from their authors' repositories, with their `LICENSE` and `NOTICE` files.

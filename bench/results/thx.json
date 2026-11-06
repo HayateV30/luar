@@ -1,0 +1,152 @@
+[
+  {
+    "dataset": "b2w",
+    "engine": "THX-01",
+    "rows": 300,
+    "seconds_total": 316.6,
+    "seconds_per_row": 1.06,
+    "needs_review_share": 0.437,
+    "questions": {
+      "recomenda": {
+        "type": "noul",
+        "rows": 300,
+        "accuracy": 0.823,
+        "calibration": {
+          "ece": 0.033,
+          "mean_confidence": 0.82,
+          "accuracy_conf_ge_0.7": 0.886,
+          "share_conf_ge_0.7": 0.79,
+          "accuracy_conf_lt_0.7": 0.587
+        }
+      },
+      "sentimento": {
+        "type": "choice",
+        "rows": 300,
+        "accuracy": 0.717,
+        "confusion": {
+          "negativo": {
+            "negativo": 93,
+            "neutro": 13,
+            "positivo": 3
+          },
+          "neutro": {
+            "negativo": 18,
+            "neutro": 10,
+            "positivo": 5
+          },
+          "positivo": {
+            "negativo": 9,
+            "neutro": 37,
+            "positivo": 112
+          }
+        },
+        "calibration": {
+          "ece": 0.025,
+          "mean_confidence": 0.737,
+          "accuracy_conf_ge_0.7": 0.816,
+          "share_conf_ge_0.7": 0.67,
+          "accuracy_conf_lt_0.7": 0.515
+        }
+      },
+      "estrelas": {
+        "type": "score",
+        "rows": 300,
+        "accuracy": 0.453,
+        "within_1": 0.933,
+        "mean_abs_error": 0.627,
+        "confusion": {
+          "1": {
+            "1": 22,
+            "2": 6,
+            "3": 2,
+            "4": 0,
+            "5": 0
+          },
+          "2": {
+            "1": 36,
+            "2": 44,
+            "3": 18,
+            "4": 3,
+            "5": 2
+          },
+          "3": {
+            "1": 0,
+            "2": 6,
+            "3": 1,
+            "4": 2,
+            "5": 1
+          },
+          "4": {
+            "1": 2,
+            "2": 4,
+            "3": 33,
+            "4": 26,
+            "5": 14
+          },
+          "5": {
+            "1": 0,
+            "2": 0,
+            "3": 6,
+            "4": 29,
+            "5": 43
+          }
+        },
+        "calibration": {
+          "ece": 0.17,
+          "mean_confidence": 0.61,
+          "accuracy_conf_ge_0.7": 0.592,
+          "share_conf_ge_0.7": 0.253,
+          "accuracy_conf_lt_0.7": 0.406
+        }
+      }
+    }
+  },
+  {
+    "dataset": "ag_news",
+    "engine": "THX-01",
+    "rows": 300,
+    "seconds_total": 100.9,
+    "seconds_per_row": 0.34,
+    "needs_review_share": 0.047,
+    "questions": {
+      "topic": {
+        "type": "choice",
+        "rows": 300,
+        "accuracy": 0.907,
+        "confusion": {
+          "business": {
+            "business": 61,
+            "scitech": 3,
+            "sports": 1,
+            "world": 4
+          },
+          "scitech": {
+            "business": 6,
+            "scitech": 71,
+            "sports": 0,
+            "world": 2
+          },
+          "sports": {
+            "business": 1,
+            "scitech": 0,
+            "sports": 73,
+            "world": 2
+          },
+          "world": {
+            "business": 7,
+            "scitech": 1,
+            "sports": 1,
+            "world": 67
+          }
+        },
+        "calibration": {
+          "ece": 0.027,
+          "mean_confidence": 0.932,
+          "accuracy_conf_ge_0.7": 0.934,
+          "share_conf_ge_0.7": 0.953,
+          "accuracy_conf_lt_0.7": 0.357
+        }
+      }
+    }
+  }
+]

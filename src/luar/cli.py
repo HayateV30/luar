@@ -26,7 +26,12 @@ def _cmd_run(args) -> int:
     from .questions import load_questions
 
     questions = load_questions(args.questions)
-    backend = make_backend("laya", checkpoint=args.checkpoint, device=args.device)
+    if args.engine == "thx":
+        if args.checkpoint != "auto":
+            raise ValueError("--checkpoint only applies to the Laya engine.")
+        backend = make_backend("thx", device=args.device)
+    else:
+        backend = make_backend("laya", checkpoint=args.checkpoint, device=args.device)
 
     def progress(done, total):
         print(f"\r  {done}/{total} rows", end="", file=sys.stderr, flush=True)
@@ -49,14 +54,22 @@ def _cmd_run(args) -> int:
 
 
 DOWNLOAD_DEFAULT = ("multilingual", "english")  # the two checkpoints `auto` picks from
+THX_MODEL = "thx-01"
 
 
 def _cmd_download(args) -> int:
     from .backends.laya_backend import download_checkpoints
+    from .backends.thx_backend import download_model
 
-    print("Downloading the Laya models (about 1.5 GB, only once)…", file=sys.stderr)
-    for folder in download_checkpoints(checkpoints=tuple(args.checkpoints or DOWNLOAD_DEFAULT)):
-        print(f"  {folder}")
+    asked = tuple(args.checkpoints or DOWNLOAD_DEFAULT)
+    laya = tuple(name for name in asked if name != THX_MODEL)
+    if laya:
+        print("Downloading the Laya models (about 1.5 GB, only once)…", file=sys.stderr)
+        for folder in download_checkpoints(checkpoints=laya):
+            print(f"  {folder}")
+    if THX_MODEL in asked:
+        print("Downloading the THX-01 model (about 650 MB, only once)…", file=sys.stderr)
+        print(f"  {download_model()}")
     print("Done: LUAR now runs offline.")
     return 0
 
@@ -83,6 +96,8 @@ def main(argv: list[str] | None = None) -> int:
                    help=f"confidence below this marks the row for review (default {DEFAULT_THRESHOLD})")
     p.add_argument("-o", "--out-dir", help="output folder (default: next to the file)")
     p.add_argument("--sheet", help="Excel sheet name (default: first)")
+    p.add_argument("--engine", default="laya", choices=["laya", "thx"],
+                   help='decision engine (default: laya; thx needs pip install "luar[thx]")')
     p.add_argument("--checkpoint", default="auto", choices=["auto", "multilingual", "english", "typed-decisions"],
                    help="Laya model variant (default: auto, by the file's language)")
     p.add_argument("--device", help="cpu or cuda (default: automatic)")
@@ -96,10 +111,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--sheet")
     p.set_defaults(func=_cmd_columns)
 
-    p = sub.add_parser("download", help="fetch the Laya models now, so LUAR works offline afterwards")
+    p = sub.add_parser("download", help="fetch the models now, so LUAR works offline afterwards")
     # no list default: before Python 3.14, argparse checks a list default against `choices` as one value
     p.add_argument("checkpoints", nargs="*",
-                   choices=["multilingual", "english", "typed-decisions"],
+                   choices=["multilingual", "english", "typed-decisions", THX_MODEL],
                    help="which models (default: multilingual and english, the ones `auto` picks from)")
     p.set_defaults(func=_cmd_download)
 

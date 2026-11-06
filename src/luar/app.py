@@ -19,6 +19,7 @@ import pandas as pd
 
 from .backends.base import BackendError
 from .backends.laya_backend import INSTALL_HINT, LayaBackend, laya_installed, pick_checkpoint
+from .backends.thx_backend import ThxBackend
 from .engine import DEFAULT_THRESHOLD, EXPECTED_PREFIX, REVIEW_COL, build_texts, classify, save_result
 from .i18n import TEXTS, language, normalize, num, rows, t
 from .safety import describe_sensitive, scan_sensitive
@@ -44,7 +45,7 @@ MAX_ROWS = 20_000
 # leftovers from a crash are removed after a day. Gradio's own upload cache is cleaned by delete_cache.
 WORK_DIR = Path(tempfile.gettempdir()) / "luar"
 STALE_AFTER = 24 * 3600
-_backends: dict[str, LayaBackend] = {}  # loaded models, reused between runs
+_backends: dict[str, LayaBackend | ThxBackend] = {}  # loaded models, reused between runs
 
 # The language button: the browser remembers the choice; the first visit follows the browser's language.
 # Both run in the page only (no server round trip); changing the hidden language box re-labels the page.
@@ -395,7 +396,16 @@ def checkpoint_choices() -> list[tuple[str, str]]:
     return [(t(name), value) for value, name in CHECKPOINT_NAMES.items()]
 
 
-def _backend(checkpoint: str, texts: list[str], questions) -> LayaBackend:
+ENGINE_NAMES = {"laya": "engine_laya", "thx": "engine_thx"}
+
+
+def engine_choices() -> list[tuple[str, str]]:
+    return [(t(name), value) for value, name in ENGINE_NAMES.items()]
+
+
+def _backend(checkpoint: str, texts: list[str], questions, engine: str = "laya") -> LayaBackend | ThxBackend:
+    if engine == "thx":
+        return _backends.setdefault("thx", ThxBackend())
     resolved = pick_checkpoint(texts, questions) if checkpoint == "auto" else checkpoint
     if resolved not in _backends:
         _backends[resolved] = LayaBackend(checkpoint=resolved)
@@ -405,7 +415,8 @@ def _backend(checkpoint: str, texts: list[str], questions) -> LayaBackend:
     return backend
 
 
-def on_run(file, columns, table, threshold, checkpoint, allow_sensitive, lang="en", progress=gr.Progress()):
+def on_run(file, columns, table, threshold, checkpoint, allow_sensitive, lang="en", engine="laya",
+           progress=gr.Progress()):
     with language(lang):
         if not file:
             raise error(t("err_no_file"))
@@ -426,7 +437,7 @@ def on_run(file, columns, table, threshold, checkpoint, allow_sensitive, lang="e
         texts = df[columns].astype(str).agg(" ".join, axis=1).tolist()
         progress(0, desc=t("progress_loading"))
         try:
-            backend = _backend(checkpoint, texts, questions)
+            backend = _backend(checkpoint, texts, questions, engine)
             # the progress callback runs in this thread, inside the language block
             result = classify(
                 df, columns, questions, backend, threshold,
@@ -560,9 +571,11 @@ def _build() -> gr.Blocks:
             threshold = gr.Slider(
                 0.5, 0.95, value=DEFAULT_THRESHOLD, step=0.05, label=t("threshold"), info=t("threshold_info"),
             )
+            engine = gr.Dropdown(engine_choices(), value="laya", label=t("engine"), info=t("engine_info"))
             checkpoint = gr.Dropdown(
                 checkpoint_choices(), value="auto", label=t("checkpoint"), info=t("checkpoint_info"),
             )
+        engine.change(lambda name: gr.update(visible=name == "laya"), engine, checkpoint)  # a Laya-only choice
         run = gr.Button(t("run"), variant="primary", size="lg", elem_id="luar-run")
 
         headings["result"] = gr.Markdown(step_heading("result"), elem_classes="luar-step")
@@ -573,7 +586,7 @@ def _build() -> gr.Blocks:
             with gr.Tab(t("tab_table")) as table_tab:
                 result = gr.Dataframe(interactive=False, max_height=420, wrap=True)
 
-        def relabel(code, table, info, example_value, checkpoint_value):
+        def relabel(code, table, info, example_value, checkpoint_value, engine_value="laya"):
             """Every text on the page in the chosen language. Results already shown (summary, table,
             files) stay as they were made: they are the output of that run."""
             code = normalize(code)
@@ -599,6 +612,7 @@ def _build() -> gr.Blocks:
                     gr.update(value=t("save_questions")),
                     gr.update(label=t("questions_file")),
                     gr.update(label=t("threshold"), info=t("threshold_info")),
+                    gr.update(choices=engine_choices(), value=engine_value, label=t("engine"), info=t("engine_info")),
                     gr.update(choices=checkpoint_choices(), value=checkpoint_value, label=t("checkpoint"),
                               info=t("checkpoint_info")),
                     gr.update(value=t("run")),
@@ -610,10 +624,10 @@ def _build() -> gr.Blocks:
         relabelled = [
             lang_btn, readme_btn, *sample_btns, tagline, *manual_parts, laya_missing,
             *headings.values(), upload, status, columns, allow_sensitive, example, questions, question_help,
-            q_upload, q_save, q_file, threshold, checkpoint, run, downloads, summary_tab, table_tab,
+            q_upload, q_save, q_file, threshold, engine, checkpoint, run, downloads, summary_tab, table_tab,
         ]
         # the language box changes in the page (button or first visit); the page is then re-labelled
-        lang.change(relabel, [lang, questions, file_info, example, checkpoint], relabelled)
+        lang.change(relabel, [lang, questions, file_info, example, checkpoint, engine], relabelled)
         lang_btn.click(None, lang, lang, js=TOGGLE_LANG_JS)
         demo.load(None, None, lang, js=LOAD_LANG_JS)
 
@@ -623,7 +637,7 @@ def _build() -> gr.Blocks:
         q_upload.change(on_load_questions, [q_upload, lang], questions)
         q_save.click(on_save_questions, [questions, lang], q_file)
         run.click(
-            on_run, [source, columns, questions, threshold, checkpoint, allow_sensitive, lang],
+            on_run, [source, columns, questions, threshold, checkpoint, allow_sensitive, lang, engine],
             [result, summary, downloads],
         )
     return demo

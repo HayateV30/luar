@@ -40,7 +40,8 @@ ui = [
     "anyio>=4",  # gradio accepts 3.x but cannot build the page with it
 ]
 laya = []  # Laya is now a required dependency; kept so `luar[laya]` still installs cleanly
-all = ["luar[ui]"]
+thx = ["thx01==1.0.0"]  # the optional THX-01 engine; the version the tests and benchmarks ran on
+all = ["luar[ui,thx]"]
 dev = ["pytest>=8"]
 
 [project.scripts]

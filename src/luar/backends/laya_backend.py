@@ -122,7 +122,11 @@ def verify_weights(folder: str | Path, subfolder: str | None, repo: str = DEFAUL
     expected = WEIGHTS_SHA256.get(subfolder) if repo == DEFAULT_REPO else None
     if expected is None:
         return  # another repo: nothing to compare with
-    weights = (Path(folder) / subfolder if subfolder else Path(folder)) / "model.safetensors"
+    check_weights((Path(folder) / subfolder if subfolder else Path(folder)) / "model.safetensors", expected)
+
+
+def check_weights(weights: Path, expected: str, message: str = "b_integrity") -> None:
+    """Refuse a weights file with another hash, explaining with the i18n key `message`."""
     stat = weights.stat()
     key, mark = str(weights.resolve()), [stat.st_size, stat.st_mtime_ns, expected]
     try:
@@ -136,7 +140,7 @@ def verify_weights(folder: str | Path, subfolder: str | None, repo: str = DEFAUL
         for block in iter(lambda: f.read(1 << 20), b""):
             digest.update(block)
     if digest.hexdigest() != expected:
-        raise ModelIntegrityError(t("b_integrity", path=weights))
+        raise ModelIntegrityError(t(message, path=weights))
     cache[key] = mark
     try:
         VERIFIED_CACHE.parent.mkdir(parents=True, exist_ok=True)

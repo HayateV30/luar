@@ -34,6 +34,7 @@ src/luar/
   backends/      the decision engines
     base.py            Answer, Backend protocol, BackendError
     laya_backend.py    Laya (a required dependency), loaded from the local cache once downloaded
+    thx_backend.py     THX-01 (optional, luar[thx]), pinned revision and hash, same question format as Laya
   cli.py         `luar run`, `luar columns`, `luar download`, `luar ui`
   app.py         Gradio web interface (luar[ui])
 examples/        sample data and questions, with expected_* columns

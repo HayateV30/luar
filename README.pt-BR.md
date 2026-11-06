@@ -89,8 +89,8 @@ Abra um terminal e rode:
 ```bash
 pip install "luar[all]"
 ```
-Instala a LUAR com a Laya e a interface web. (`pip install luar`, sem o `[all]`, instala só a linha
-de comando, também com a Laya.)
+Instala a LUAR com a Laya, a interface web e o motor opcional THX-01 (seção 8). (`pip install luar`,
+sem o `[all]`, instala só a linha de comando, também com a Laya.)
 
 Para deixar a LUAR pronta para usar **sem internet**, baixe os modelos da Laya logo depois de
 instalar:
@@ -187,8 +187,10 @@ tabela; **Carregar perguntas (.json)** carrega de volta. Escrever as perguntas u
 
 - **Limite de confiança** (padrão `0,7`): toda resposta abaixo dele é marcada
   em `needs_review`. Aumente para revisar mais linhas, diminua para revisar menos.
+- **Motor**: deixe na Laya, o padrão, a não ser que queira experimentar o THX-01, o motor opcional
+  ([seção 8](#8-quanto-a-laya-acerta)).
 - **Variante do modelo Laya**: deixe em `auto`. Ele usa o modelo inglês para
-  arquivos em inglês e o multilíngue para os demais.
+  arquivos em inglês e o multilíngue para os demais. Só aparece com a Laya selecionada.
 
 Clique em **Executar**. Se você não rodou `luar download` na instalação, na primeira vez a Laya baixa o
 modelo, o que leva alguns minutos; depois, as execuções começam em segundos.
@@ -366,6 +368,32 @@ O acerto depende muito do tipo de pergunta e dos seus dados: perguntas claras de
 sim/não vão bem; escalas (`score`) e opções "do meio" vão mal. Por isso, **meça na sua amostra com
 colunas `expected_`** (seção 7) antes de confiar num arquivo grande.
 
+### THX-01, o motor opcional
+
+A Laya é o padrão da LUAR. O [THX-01](https://huggingface.co/doofz/THX-01) (da HAL-X AI) é um segundo
+motor, opcional, que também roda só no seu computador. Ele responde às mesmas perguntas `choice`,
+`noul` e `score`. Nas mesmas amostras e no mesmo notebook:
+
+| | Laya | THX-01 |
+|---|---|---|
+| **Tema de notícias** (inglês, AG News) | **93%** | 91% |
+| **Recomendaria?** (B2W) | 70% | **82%** |
+| **Sentimento** (B2W) | 68% (neutro: 5%) | 72% (neutro: 17%) |
+| **Nota de 1 a 5 estrelas** (B2W) | 33% (68% com até uma estrela de diferença) | **45%** (93% com até uma estrela de diferença) |
+| **Erro de calibração** (ECE, menor é melhor; B2W) | 0,18 / 0,18 / 0,32 | **0,03 / 0,03 / 0,17** |
+| **Linhas marcadas para revisão** (B2W) | 32% | 44% |
+| **Tempo por linha** (B2W, três perguntas) | 1,3 s | 1,1 s |
+| **Pico de memória** (B2W, 300 linhas) | cerca de 2,5 GB | cerca de 4,5 GB |
+| **Download** | cerca de 1,5 GB (dois modelos) | cerca de 650 MB |
+
+Com 300 linhas, as diferenças em tema de notícias e sentimento podem ser acaso. As de recomendação,
+estrelas e calibração são claras. O português não está entre os idiomas que os autores do THX-01 listam
+para o treino dele, então estes testes são a evidência que temos: experimente os dois na sua amostra,
+com colunas `expected_`.
+
+Para usar, instale com `pip install "luar[thx]"` (o `luar[all]` já inclui) e escolha em **Motor** ou
+rode `luar run … --engine thx`. Para baixar o modelo antes e usar sem internet: `luar download thx-01`.
+
 ---
 
 ## 9. Usando pela linha de comando
@@ -381,7 +409,8 @@ Lista as colunas de um arquivo, com um valor de exemplo de cada.
 ```bash
 luar download
 ```
-Baixa os modelos da Laya (multilíngue e inglês) para usar a LUAR sem internet depois.
+Baixa os modelos da Laya (multilíngue e inglês) para usar a LUAR sem internet depois. `luar download
+thx-01` baixa o modelo opcional THX-01.
 
 ```bash
 luar run minha_planilha.xlsx -q perguntas.json -c avaliacao
@@ -397,6 +426,7 @@ acrescenta `_2`, `_3`… em vez de sobrescrever.
 | `-t`, `--threshold` | Limite de confiança, de 0 a 1 (padrão `0.7`). |
 | `-o`, `--out-dir` | Salva os resultados em outra pasta. |
 | `--sheet` | Aba do Excel a ler (padrão: a primeira). |
+| `--engine` | `laya` (padrão) ou `thx`, o motor opcional (seção 8). |
 | `--checkpoint` | Variante da Laya: `auto` (padrão), `multilingual` ou `english`. |
 | `--device` | `cpu` ou `cuda` (padrão: automático). |
 | `--allow-sensitive-data` | Lê colunas com dados pessoais (CPF, CNPJ, cartões, e-mails, telefones). Só se você puder processá-los. |
@@ -426,7 +456,7 @@ vir de outras pessoas, então ela protege você do que elas podem conter:
 | **Fórmulas continuam texto** | Uma célula cujo texto começa com `=` (por exemplo `=HYPERLINK(...)`) é gravada no `.xlsx` de resultado como texto, nunca como fórmula ativa. |
 | **Relatório em texto puro** | O texto copiado da planilha para o relatório não vira imagem, link nem HTML, então abrir o relatório nunca faz o navegador acessar um site. |
 | **Leitura segura de arquivos** | Arquivos `.xlsx` são lidos com proteção contra XML malicioso (`defusedxml`); macros de arquivos `.xlsm` nunca são executadas nem copiadas para o resultado. Arquivos que descompactam para mais de 300 MB são recusados. A interface web aceita arquivos de até 50 MB e 20.000 linhas (para maiores, use a linha de comando). Uma linha de CSV com mais campos que o cabeçalho é recusada, em vez de ser cortada em silêncio. |
-| **Modelo verificado** | A LUAR baixa uma versão fixa da Laya e confere os arquivos com as impressões digitais SHA-256 publicadas antes de carregar; um modelo corrompido ou alterado é recusado. |
+| **Modelo verificado** | A LUAR baixa uma versão fixa da Laya (e do THX-01, se você usar) e confere os arquivos com as impressões digitais SHA-256 publicadas antes de carregar; um modelo corrompido ou alterado é recusado. |
 | **Seus dados são apagados** | Os arquivos de resultado e as cópias dos seus envios são apagados quando você fecha a LUAR (sobras de uma falha, depois de um dia). Baixe os resultados antes de fechar. |
 | **Só local** | A interface só responde em `127.0.0.1` e recusa pedidos vindos de outros sites. |
 
@@ -518,4 +548,6 @@ Bugs e ideias: [issues](https://github.com/HayateV30/luar/issues).
 
 **Licença.** MIT para o código da LUAR. A Laya (pacote e pesos do modelo) é um projeto separado, com
 licença própria; consulte o [model card](https://huggingface.co/convaiinnovations/laya) antes de
-redistribuí-la.
+redistribuí-la. O THX-01 (o motor opcional, © HAL-X AI) também é um projeto separado, sob a licença
+Apache-2.0; ele inclui o codificador mmBERT (MIT). A LUAR não traz nenhum dos dois modelos: eles são
+baixados dos repositórios dos autores, com os arquivos `LICENSE` e `NOTICE`.
