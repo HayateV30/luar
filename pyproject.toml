@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "luar"
-version = "0.7.0"
+version = "0.8.0"
 description = "LUAR (Local Utility for Automated Reviews): catalog spreadsheet rows with a local decision model."
 readme = "README.md"
 license = "MIT"
@@ -41,7 +41,8 @@ ui = [
 ]
 laya = []  # Laya is now a required dependency; kept so `luar[laya]` still installs cleanly
 thx = ["thx01==1.0.0"]  # the optional THX-01 engine; the version the tests and benchmarks ran on
-all = ["luar[ui,thx]"]
+ocr = ["liteparse==2.21.3"]  # reading PDFs and images; the version the tests and benchmarks ran on
+all = ["luar[ui,thx,ocr]"]
 dev = ["pytest>=8"]
 
 [project.scripts]

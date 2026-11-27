@@ -87,8 +87,9 @@ Open a terminal and run:
 ```bash
 pip install "luar[all]"
 ```
-Installs LUAR with Laya, the web interface and the optional THX-01 engine (section 8). (`pip install
-luar`, without `[all]`, installs only the command line, still with Laya.)
+Installs LUAR with Laya, the web interface, the optional THX-01 engine (section 8) and the reading of
+PDFs and images (step 2). (`pip install luar`, without `[all]`, installs only the command line, still
+with Laya.)
 
 To have LUAR ready to use **without internet**, download the Laya models right after installing:
 
@@ -154,6 +155,27 @@ examples menu. Otherwise, download
 [reviews.csv](https://raw.githubusercontent.com/HayateV30/luar/main/examples/reviews.csv) and
 [reviews_questions.json](https://raw.githubusercontent.com/HayateV30/luar/main/examples/reviews_questions.json)
 and load them as described in steps 2 and 3.
+
+### PDFs and images
+
+Instead of a spreadsheet you can drop **a PDF or an image** (`.pdf`, `.png`, `.jpg`, `.tif`, `.webp`,
+`.bmp`). LUAR turns it into a table with **one row per page** and the columns `file`, `page` and
+`text`; tick `text` and carry on as usual. The result is saved as `.xlsx`. It needs `pip install
+"luar[ocr]"` (`luar[all]` already includes it).
+
+A PDF that already holds text is read as is. Scanned pages and images are read by **OCR**, chosen
+under **Reader for PDFs and images**:
+
+- **Tesseract** (default): free for everyone. The first time, LUAR downloads its Portuguese model
+  (8 MB) and checks it. It is weaker on photos and poor scans.
+- **OCRia-nano** (by LlamaIndex): reads photos and poor scans better, but **its license limits who may
+  use it**. It is free for personal use and for organizations under **US$ 2 million in annual revenue**
+  (and under US$ 2 million in total funding); others need a commercial license, and so does any use in a
+  product that competes with LlamaParse. Read the [license](https://huggingface.co/llamaindex/OCRia-nano-1)
+  first. LUAR only uses it when you choose it, after you download it with `luar download ocria-nano`.
+
+Up to 500 pages per file. Handwriting, stamps and pages in two columns were not tested: check a few
+pages in the preview before running the questions. Section 8 has the numbers.
 
 ### Step 3: write your questions
 
@@ -390,6 +412,23 @@ To use it, install `pip install "luar[thx]"` (`luar[all]` already includes it), 
 **Engine** or run `luar run … --engine thx`. To download the model ahead of time and work offline:
 `luar download thx-01`.
 
+### Reading PDFs and images
+
+On ten made-up Portuguese documents (an invoice, an all-caps receipt, a contract, a table, a skewed photo,
+a low-resolution scan, a typewritten letter, an image-only PDF…), read the way LUAR reads them:
+
+| | Tesseract | OCRia-nano |
+|---|---|---|
+| **Character error rate** (lower is better) | 2.6% | **0.4%** |
+| **Accented words read right** | 66 of 66 | 66 of 66 |
+| **Numbers read right** (amounts, dates, CNPJ, a bank slip) | 51 of 51 | 50 of 51 |
+| **Skewed photo / low-resolution scan** | 9% / 12% | **0% / 0%** |
+| **Time per page** | about 0.5 s | about 0.5 s |
+
+Tesseract's errors are on the photo and the poor scan (missing words, lines out of order); OCRia-nano's
+are small (`nº` read as `n°`, `R$` as `RS` once, a lone digit dropped). These documents are clean
+computer-drawn text: real scans will do worse.
+
 ---
 
 ## 9. Using the command line
@@ -406,7 +445,8 @@ Lists the columns of a file with a sample value from each.
 luar download
 ```
 Downloads Laya's models (multilingual and English) so LUAR works offline afterwards. `luar download
-thx-01` downloads the optional THX-01 model.
+thx-01` downloads the optional THX-01 model; `luar download ocr`, Tesseract's Portuguese model (for
+PDFs and images), and `luar download ocria-nano`, the OCRia-nano model (restricted license, see step 2).
 
 ```bash
 luar run my_file.xlsx -q questions.json -c review
@@ -423,6 +463,7 @@ Labels the file. The result and the summary are saved **next to the original fil
 | `-o`, `--out-dir` | Save the results in another folder. |
 | `--sheet` | Excel sheet to read (default: the first). |
 | `--engine` | `laya` (default) or `thx`, the optional engine (section 8). |
+| `--ocr` | Reader for PDFs and images: `tesseract` (default) or `ocria-nano` (restricted license, see step 2). |
 | `--checkpoint` | Laya model variant: `auto` (default), `multilingual` or `english`. |
 | `--device` | `cpu` or `cuda` (default: automatic). |
 | `--allow-sensitive-data` | Read columns that hold personal data (CPF, CNPJ, cards, e-mails, phones). Only if you are allowed to process it. |
@@ -452,6 +493,7 @@ other people, so it protects you from what they might contain:
 | **Formulas stay text** | A cell whose text starts with `=` (for example `=HYPERLINK(...)`) is written to the result `.xlsx` as text, never as a live formula. |
 | **Plain-text summary** | Text copied from the spreadsheet into the summary can't become an image, a link or HTML, so opening the summary never makes your browser contact a website. |
 | **Safe file reading** | `.xlsx` files are read with protection against malicious XML (`defusedxml`); macros in `.xlsm` files are never run and are not copied to the result. Files that unpack to more than 300 MB are refused. The web interface takes files up to 50 MB and 20,000 rows (use the command line for bigger ones). A CSV row with more fields than the header is refused instead of being silently cut. |
+| **PDFs and images** | They are read by LiteParse on this computer, with a limit of 500 pages; the text read goes through the same personal-data check as a spreadsheet. Tesseract's model is downloaded from a fixed version and checked like the others. |
 | **Verified model** | LUAR downloads a fixed version of Laya (and of THX-01, if you use it) and checks its files against the published SHA-256 fingerprints before loading; a corrupted or altered model is refused. |
 | **Your data is cleaned up** | Result files and copies of your uploads are deleted when you close LUAR (leftovers from a crash after a day). Download your results before closing. |
 | **Local only** | The interface only answers on `127.0.0.1` and refuses requests coming from other websites. |
@@ -546,4 +588,6 @@ pip install -e ".[all]"
 with its own license; check its [model card](https://huggingface.co/convaiinnovations/laya) before
 redistributing it. THX-01 (the optional engine, © HAL-X AI) is also a separate project, under the
 Apache-2.0 license; it includes the mmBERT encoder (MIT). LUAR does not ship either model: they are
-downloaded from their authors' repositories, with their `LICENSE` and `NOTICE` files.
+downloaded from their authors' repositories, with their `LICENSE` and `NOTICE` files. Reading PDFs and
+images uses LiteParse (Apache-2.0) with Tesseract (Apache-2.0), or, only if you choose it, OCRia-nano,
+whose license limits commercial use (see step 2).

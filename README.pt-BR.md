@@ -89,8 +89,8 @@ Abra um terminal e rode:
 ```bash
 pip install "luar[all]"
 ```
-Instala a LUAR com a Laya, a interface web e o motor opcional THX-01 (seção 8). (`pip install luar`,
-sem o `[all]`, instala só a linha de comando, também com a Laya.)
+Instala a LUAR com a Laya, a interface web, o motor opcional THX-01 (seção 8) e a leitura de PDF e
+imagem (passo 2). (`pip install luar`, sem o `[all]`, instala só a linha de comando, também com a Laya.)
 
 Para deixar a LUAR pronta para usar **sem internet**, baixe os modelos da Laya logo depois de
 instalar:
@@ -159,6 +159,28 @@ exemplo)** no menu de exemplos. Se não, baixe
 [avaliacoes.csv](https://raw.githubusercontent.com/HayateV30/luar/main/examples/avaliacoes.csv) e
 [avaliacoes_perguntas.json](https://raw.githubusercontent.com/HayateV30/luar/main/examples/avaliacoes_perguntas.json)
 e carregue-os como nos passos 2 e 3.
+
+### PDF e imagem
+
+No lugar de uma planilha, você pode arrastar **um PDF ou uma imagem** (`.pdf`, `.png`, `.jpg`, `.tif`,
+`.webp`, `.bmp`). A LUAR transforma o arquivo numa tabela com **uma linha por página** e as colunas
+`file`, `page` e `text`; marque `text` e siga como sempre. O resultado sai em `.xlsx`. Precisa de
+`pip install "luar[ocr]"` (o `luar[all]` já inclui).
+
+Um PDF que já tem texto é lido como está. Páginas digitalizadas e imagens passam por **OCR**, escolhido
+em **Leitor de PDF e imagem**:
+
+- **Tesseract** (padrão): livre para todos. Na primeira vez, a LUAR baixa o modelo de português dele
+  (8 MB) e confere o arquivo. Ele se sai pior em fotos e digitalizações ruins.
+- **OCRia-nano** (da LlamaIndex): lê melhor fotos e digitalizações ruins, mas **a licença limita quem pode
+  usar**. É gratuito para uso pessoal e para organizações com **faturamento anual abaixo de US$ 2 milhões**
+  (e menos de US$ 2 milhões em investimento recebido); as demais precisam de licença comercial, assim
+  como qualquer uso num produto que concorra com o LlamaParse. Leia a
+  [licença](https://huggingface.co/llamaindex/OCRia-nano-1) antes. A LUAR só usa o OCRia-nano quando você
+  escolhe, depois de baixá-lo com `luar download ocria-nano`.
+
+Até 500 páginas por arquivo. Letra de mão, carimbos e páginas em duas colunas não foram testados: confira
+algumas páginas na prévia antes de rodar as perguntas. A seção 8 traz os números.
 
 ### Passo 3: escreva as perguntas
 
@@ -394,6 +416,24 @@ com colunas `expected_`.
 Para usar, instale com `pip install "luar[thx]"` (o `luar[all]` já inclui) e escolha em **Motor** ou
 rode `luar run … --engine thx`. Para baixar o modelo antes e usar sem internet: `luar download thx-01`.
 
+### Leitura de PDF e imagem
+
+Em dez documentos fictícios em português (uma nota fiscal, um recibo em caixa-alta, um contrato, uma
+tabela, uma foto torta, uma digitalização em baixa resolução, um ofício datilografado, um PDF só de
+imagem…), lidos do jeito que a LUAR lê:
+
+| | Tesseract | OCRia-nano |
+|---|---|---|
+| **Erro por caractere** (menor é melhor) | 2,6% | **0,4%** |
+| **Palavras acentuadas certas** | 66 de 66 | 66 de 66 |
+| **Números certos** (valores, datas, CNPJ, um boleto) | 51 de 51 | 50 de 51 |
+| **Foto torta / digitalização em baixa resolução** | 9% / 12% | **0% / 0%** |
+| **Tempo por página** | cerca de 0,5 s | cerca de 0,5 s |
+
+Os erros do Tesseract estão na foto e na digitalização ruim (palavras que somem, linhas fora de ordem);
+os do OCRia-nano são pequenos (`nº` lido como `n°`, `R$` como `RS` uma vez, um dígito solto que cai).
+Esses documentos têm texto limpo, desenhado no computador: digitalizações reais vão se sair pior.
+
 ---
 
 ## 9. Usando pela linha de comando
@@ -410,7 +450,8 @@ Lista as colunas de um arquivo, com um valor de exemplo de cada.
 luar download
 ```
 Baixa os modelos da Laya (multilíngue e inglês) para usar a LUAR sem internet depois. `luar download
-thx-01` baixa o modelo opcional THX-01.
+thx-01` baixa o modelo opcional THX-01; `luar download ocr`, o modelo de português do Tesseract (para
+PDF e imagem); e `luar download ocria-nano`, o modelo OCRia-nano (licença restrita, veja o passo 2).
 
 ```bash
 luar run minha_planilha.xlsx -q perguntas.json -c avaliacao
@@ -427,6 +468,7 @@ acrescenta `_2`, `_3`… em vez de sobrescrever.
 | `-o`, `--out-dir` | Salva os resultados em outra pasta. |
 | `--sheet` | Aba do Excel a ler (padrão: a primeira). |
 | `--engine` | `laya` (padrão) ou `thx`, o motor opcional (seção 8). |
+| `--ocr` | Leitor de PDF e imagem: `tesseract` (padrão) ou `ocria-nano` (licença restrita, veja o passo 2). |
 | `--checkpoint` | Variante da Laya: `auto` (padrão), `multilingual` ou `english`. |
 | `--device` | `cpu` ou `cuda` (padrão: automático). |
 | `--allow-sensitive-data` | Lê colunas com dados pessoais (CPF, CNPJ, cartões, e-mails, telefones). Só se você puder processá-los. |
@@ -456,6 +498,7 @@ vir de outras pessoas, então ela protege você do que elas podem conter:
 | **Fórmulas continuam texto** | Uma célula cujo texto começa com `=` (por exemplo `=HYPERLINK(...)`) é gravada no `.xlsx` de resultado como texto, nunca como fórmula ativa. |
 | **Relatório em texto puro** | O texto copiado da planilha para o relatório não vira imagem, link nem HTML, então abrir o relatório nunca faz o navegador acessar um site. |
 | **Leitura segura de arquivos** | Arquivos `.xlsx` são lidos com proteção contra XML malicioso (`defusedxml`); macros de arquivos `.xlsm` nunca são executadas nem copiadas para o resultado. Arquivos que descompactam para mais de 300 MB são recusados. A interface web aceita arquivos de até 50 MB e 20.000 linhas (para maiores, use a linha de comando). Uma linha de CSV com mais campos que o cabeçalho é recusada, em vez de ser cortada em silêncio. |
+| **PDF e imagem** | São lidos pelo LiteParse neste computador, com limite de 500 páginas; o texto lido passa pela mesma checagem de dados pessoais de uma planilha. O modelo do Tesseract vem de uma versão fixa e é conferido como os outros. |
 | **Modelo verificado** | A LUAR baixa uma versão fixa da Laya (e do THX-01, se você usar) e confere os arquivos com as impressões digitais SHA-256 publicadas antes de carregar; um modelo corrompido ou alterado é recusado. |
 | **Seus dados são apagados** | Os arquivos de resultado e as cópias dos seus envios são apagados quando você fecha a LUAR (sobras de uma falha, depois de um dia). Baixe os resultados antes de fechar. |
 | **Só local** | A interface só responde em `127.0.0.1` e recusa pedidos vindos de outros sites. |
@@ -550,4 +593,6 @@ Bugs e ideias: [issues](https://github.com/HayateV30/luar/issues).
 licença própria; consulte o [model card](https://huggingface.co/convaiinnovations/laya) antes de
 redistribuí-la. O THX-01 (o motor opcional, © HAL-X AI) também é um projeto separado, sob a licença
 Apache-2.0; ele inclui o codificador mmBERT (MIT). A LUAR não traz nenhum dos dois modelos: eles são
-baixados dos repositórios dos autores, com os arquivos `LICENSE` e `NOTICE`.
+baixados dos repositórios dos autores, com os arquivos `LICENSE` e `NOTICE`. A leitura de PDF e imagem
+usa o LiteParse (Apache-2.0) com o Tesseract (Apache-2.0) ou, só se você escolher, o OCRia-nano, cuja
+licença limita o uso comercial (veja o passo 2).

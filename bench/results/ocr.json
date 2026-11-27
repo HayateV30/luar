@@ -1,0 +1,262 @@
+{
+  "tesseract": {
+    "documents": {
+      "01_invoice": {
+        "cer": 0.0,
+        "accents": [
+          10,
+          10
+        ],
+        "numbers": [
+          4,
+          4
+        ],
+        "seconds": 0.89
+      },
+      "02_receipt_all_caps": {
+        "cer": 0.0,
+        "accents": [
+          6,
+          6
+        ],
+        "numbers": [
+          3,
+          3
+        ],
+        "seconds": 0.53
+      },
+      "03_complaint": {
+        "cer": 0.0,
+        "accents": [
+          8,
+          8
+        ],
+        "numbers": [
+          2,
+          2
+        ],
+        "seconds": 0.58
+      },
+      "04_contract": {
+        "cer": 0.007,
+        "accents": [
+          11,
+          11
+        ],
+        "numbers": [
+          5,
+          5
+        ],
+        "seconds": 0.64
+      },
+      "05_prescription": {
+        "cer": 0.0,
+        "accents": [
+          8,
+          8
+        ],
+        "numbers": [
+          5,
+          5
+        ],
+        "seconds": 0.44
+      },
+      "06_table": {
+        "cer": 0.032,
+        "accents": [
+          6,
+          6
+        ],
+        "numbers": [
+          11,
+          11
+        ],
+        "seconds": 0.51
+      },
+      "07_photo": {
+        "cer": 0.094,
+        "accents": [
+          5,
+          5
+        ],
+        "numbers": [
+          6,
+          6
+        ],
+        "seconds": 0.5
+      },
+      "08_low_resolution": {
+        "cer": 0.124,
+        "accents": [
+          3,
+          3
+        ],
+        "numbers": [
+          3,
+          3
+        ],
+        "seconds": 0.34
+      },
+      "09_typewritten": {
+        "cer": 0.0,
+        "accents": [
+          4,
+          4
+        ],
+        "numbers": [
+          6,
+          6
+        ],
+        "seconds": 0.68
+      },
+      "10_scanned_pdf": {
+        "cer": 0.0,
+        "accents": [
+          5,
+          5
+        ],
+        "numbers": [
+          6,
+          6
+        ],
+        "seconds": 0.36
+      }
+    },
+    "summary": {
+      "cer": 0.026,
+      "accents": "66/66",
+      "numbers": "51/51",
+      "seconds_per_page": 0.55
+    }
+  },
+  "ocria-nano": {
+    "documents": {
+      "01_invoice": {
+        "cer": 0.0,
+        "accents": [
+          10,
+          10
+        ],
+        "numbers": [
+          4,
+          4
+        ],
+        "seconds": 1.57
+      },
+      "02_receipt_all_caps": {
+        "cer": 0.0,
+        "accents": [
+          6,
+          6
+        ],
+        "numbers": [
+          3,
+          3
+        ],
+        "seconds": 0.42
+      },
+      "03_complaint": {
+        "cer": 0.005,
+        "accents": [
+          8,
+          8
+        ],
+        "numbers": [
+          2,
+          2
+        ],
+        "seconds": 0.42
+      },
+      "04_contract": {
+        "cer": 0.015,
+        "accents": [
+          11,
+          11
+        ],
+        "numbers": [
+          5,
+          5
+        ],
+        "seconds": 0.39
+      },
+      "05_prescription": {
+        "cer": 0.0,
+        "accents": [
+          8,
+          8
+        ],
+        "numbers": [
+          5,
+          5
+        ],
+        "seconds": 0.37
+      },
+      "06_table": {
+        "cer": 0.005,
+        "accents": [
+          6,
+          6
+        ],
+        "numbers": [
+          11,
+          11
+        ],
+        "seconds": 0.43
+      },
+      "07_photo": {
+        "cer": 0.0,
+        "accents": [
+          5,
+          5
+        ],
+        "numbers": [
+          6,
+          6
+        ],
+        "seconds": 0.4
+      },
+      "08_low_resolution": {
+        "cer": 0.0,
+        "accents": [
+          3,
+          3
+        ],
+        "numbers": [
+          3,
+          3
+        ],
+        "seconds": 0.27
+      },
+      "09_typewritten": {
+        "cer": 0.02,
+        "accents": [
+          4,
+          4
+        ],
+        "numbers": [
+          5,
+          6
+        ],
+        "seconds": 0.39
+      },
+      "10_scanned_pdf": {
+        "cer": 0.0,
+        "accents": [
+          5,
+          5
+        ],
+        "numbers": [
+          6,
+          6
+        ],
+        "seconds": 0.38
+      }
+    },
+    "summary": {
+      "cer": 0.004,
+      "accents": "66/66",
+      "numbers": "50/51",
+      "seconds_per_page": 0.5
+    }
+  }
+}

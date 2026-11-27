@@ -188,10 +188,11 @@ def run_file(
     sheet: str | int | None = None,
     progress: Progress | None = None,
     allow_sensitive: bool = False,
+    reader: str = "tesseract",
 ) -> Result:
     """Read `path`, classify it and write `<name>_luar.<ext>` + `<name>_luar_summary.md`.
-    The source file is never modified."""
-    df, info = read_table(path, sheet=sheet)
+    The source file is never modified. `reader` reads PDFs and images (see documents.py)."""
+    df, info = read_table(path, sheet=sheet, reader=reader)
     result = classify(df, text_columns, questions, backend, threshold, progress, allow_sensitive)
     return save_result(result, info, out_dir)
 

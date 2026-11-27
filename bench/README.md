@@ -70,6 +70,26 @@ Same samples, questions and machine, with `thx01` 1.0.0 and the weights at revis
 
 Full numbers: [`results/thx.json`](results/thx.json).
 
+## Reading PDFs and images
+
+`ocr_documents.py` draws ten made-up Portuguese documents with known text (an invoice, an all-caps
+receipt, a complaint form, a contract, a prescription, a table, a skewed and noisy photo, a 100-dpi JPEG
+scan, a typewritten letter with a bank slip number, an image-only PDF) and reads them with `read_table`,
+as LUAR does. No real document is used.
+
+```bash
+python bench/ocr_documents.py --data-dir <a folder> --readers tesseract ocria-nano
+```
+
+| Reader | Character error rate | Accented words | Numbers | s/page |
+|---|---:|---|---|---:|
+| Tesseract (Portuguese, `tessdata_best` at `9ddc24e`) | 2.6% | 66/66 | 51/51 | 0.55 |
+| OCRia-nano 1.0.0 | 0.4% | 66/66 | 50/51 | 0.50 |
+
+LiteParse 2.21.3, same laptop. Tesseract's error comes from the photo (9.4%), the low-resolution scan
+(12.4%) and the table (3.2%); on the other seven it is 0–0.7%. Per document:
+[`results/ocr.md`](results/ocr.md).
+
 ## Running it yourself
 
 ```bash

@@ -28,6 +28,7 @@ a downloaded model runs with the network blocked.
 src/luar/
   questions.py   question model and validation (choice / score / noul, up to 20 options)
   tables.py      CSV/XLSX reading (separator and encoding sniffing) and never-overwrite writing
+  documents.py   PDFs and images as one row per page (luar[ocr], LiteParse; pinned Tesseract model)
   engine.py      runs the questions over rows, confidence threshold, needs_review, accuracy
   report.py      Markdown summary
   safety.py      manipulation alerts and personal-data checks on the spreadsheet text

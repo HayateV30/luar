@@ -76,7 +76,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_run": "3. Run",
         "step_result": "Result",
         "tip_sheet": (
-            "Drop a .csv or .xlsx file (up to 50 MB and 20,000 rows). LUAR works on a copy: your file is "
+            "Drop a .csv or .xlsx file (up to 50 MB and 20,000 rows), or a PDF or an image: each page becomes "
+            "a row with its text. LUAR works on a copy: your file is "
             "never changed. Then tick the column(s) with the text the model should read. Columns named "
             "expected_... hold answers you already know; they are used to measure accuracy and are never read."
         ),
@@ -98,7 +99,27 @@ TEXTS: dict[str, dict[str, str]] = {
             "text. These files are deleted when LUAR closes, so download them first."
         ),
         # --- step 1 -------------------------------------------------------------------------
-        "upload": "CSV or XLSX",
+        "upload": "CSV, XLSX, PDF or image",
+        "reader": "Reader for PDFs and images",
+        "reader_info": "Tesseract is free for everyone. OCRia-nano reads photos and poor scans better, but its license limits who may use it: see the manual",
+        "reader_tesseract": "Tesseract (default)",
+        "reader_ocria": "OCRia-nano (restricted license)",
+        "status_document": "one row per page, read with {reader}",
+        "progress_ocr": "Reading the document (scanned pages take about a second each)…",
+        "o_missing": "Reading PDFs and images is optional and is not installed. Install it with: {hint}",
+        "o_unknown_reader": "Unknown reader {name}; use one of {names}.",
+        "o_tess_missing": "Tesseract's Portuguese model is not downloaded. Run: luar download ocr",
+        "o_tess_integrity": (
+            "Tesseract's Portuguese model does not match the official one ({path}). It may be corrupted or "
+            "altered: delete it and download it again with: luar download ocr"
+        ),
+        "o_ocria_missing": (
+            "OCRia-nano is not downloaded. Its license is free for personal use and for organizations under "
+            "US$ 2 million in annual revenue; others need a commercial license ({url}). If you may use it, "
+            "run: luar download ocria-nano"
+        ),
+        "o_unreadable": "Could not read this document (damaged, or protected by a password?): {error}",
+        "o_too_many_pages": "This document has {pages} pages; LUAR reads up to {max}. Split it and try again.",
         # Gradio's upload box (LUAR draws these words: Gradio does not redraw them on a language change)
         "upload_drop": "Drop File Here",
         "upload_or": "- or -",
@@ -317,7 +338,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_run": "3. Executar",
         "step_result": "Resultado",
         "tip_sheet": (
-            "Arraste um arquivo .csv ou .xlsx (até 50 MB e 20.000 linhas). A LUAR trabalha numa cópia: o seu "
+            "Arraste um arquivo .csv ou .xlsx (até 50 MB e 20.000 linhas), ou um PDF ou uma imagem: cada página "
+            "vira uma linha com o texto dela. A LUAR trabalha numa cópia: o seu "
             "arquivo nunca é alterado. Depois marque a(s) coluna(s) com o texto que o modelo deve ler. "
             "Colunas chamadas expected_... guardam respostas que você já sabe; servem para medir a acurácia "
             "e nunca são lidas pelo modelo."
@@ -343,7 +365,27 @@ TEXTS: dict[str, dict[str, str]] = {
             "são apagados quando a LUAR fecha, então baixe-os antes."
         ),
         # --- etapa 1 ------------------------------------------------------------------------
-        "upload": "CSV ou XLSX",
+        "upload": "CSV, XLSX, PDF ou imagem",
+        "reader": "Leitor de PDF e imagem",
+        "reader_info": "O Tesseract é livre para todos. O OCRia-nano lê melhor fotos e digitalizações ruins, mas a licença limita quem pode usar: veja o manual",
+        "reader_tesseract": "Tesseract (padrão)",
+        "reader_ocria": "OCRia-nano (licença restrita)",
+        "status_document": "uma linha por página, lido com {reader}",
+        "progress_ocr": "Lendo o documento (cada página digitalizada leva cerca de um segundo)…",
+        "o_missing": "A leitura de PDF e imagem é opcional e não está instalada. Instale com: {hint}",
+        "o_unknown_reader": "Leitor desconhecido {name}; use um destes: {names}.",
+        "o_tess_missing": "O modelo de português do Tesseract não foi baixado. Rode: luar download ocr",
+        "o_tess_integrity": (
+            "O modelo de português do Tesseract não confere com o oficial ({path}). Ele pode estar corrompido "
+            "ou alterado: apague-o e baixe de novo com: luar download ocr"
+        ),
+        "o_ocria_missing": (
+            "O OCRia-nano não foi baixado. A licença dele é gratuita para uso pessoal e para organizações com "
+            "faturamento anual abaixo de US$ 2 milhões; as demais precisam de licença comercial ({url}). Se você "
+            "pode usar, rode: luar download ocria-nano"
+        ),
+        "o_unreadable": "Não foi possível ler este documento (danificado ou protegido por senha?): {error}",
+        "o_too_many_pages": "Este documento tem {pages} páginas; a LUAR lê até {max}. Divida o arquivo e tente de novo.",
         "upload_drop": "Arraste o arquivo aqui",
         "upload_or": "- ou -",
         "upload_click": "Clique para escolher",

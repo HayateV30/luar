@@ -25,6 +25,7 @@ from .i18n import TEXTS, language, normalize, num, rows, t
 from .safety import describe_sensitive, scan_sensitive
 from .questions import EXPERIMENTAL_TYPES, QuestionError, dump_questions, load_questions, parse_questions
 from .report import render_summary
+from .documents import DOCUMENT_SUFFIXES, is_document
 from .tables import read_table
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -306,21 +307,34 @@ def file_status(info: dict | None) -> str:
     if not info:
         return ""
     cols = t("status_cols_one") if info["columns"] == 1 else t("status_cols_many", n=num(info["columns"]))
-    detail = (t("status_csv", sep=info["sep"], encoding=info["encoding"]) if info["kind"] == "csv"
-              else t("status_excel", sheet=info["sheet"]))
+    if info["kind"] == "document":
+        detail = t("status_document", reader=t(READER_NAMES.get(info.get("reader"), "reader_tesseract")))
+    elif info["kind"] == "csv":
+        detail = t("status_csv", sep=info["sep"], encoding=info["encoding"])
+    else:
+        detail = t("status_excel", sheet=info["sheet"])
     status = t("status", name=info["name"], rows=rows(info["rows"]), cols=cols, detail=detail)
     if info["sensitive"]:
         status += "\n\n" + t("status_sensitive", found=describe_sensitive(info["sensitive"]))
     return status
 
 
-def on_file(file, lang="en"):
+READER_NAMES = {"tesseract": "reader_tesseract", "ocria-nano": "reader_ocria"}
+
+
+def reader_choices() -> list[tuple[str, str]]:
+    return [(t(name), value) for value, name in READER_NAMES.items()]
+
+
+def on_file(file, lang="en", reader="tesseract", progress=gr.Progress()):
     with language(lang):
         hidden = gr.update(visible=False, value=False)
         if file is None:
             return gr.update(choices=[], value=[]), None, "", None, hidden, None
+        if is_document(file):
+            progress(0, desc=t("progress_ocr"))
         try:
-            df, info = read_table(file)
+            df, info = read_table(file, reader=reader)
         except Exception as e:  # unreadable file: tell the user, keep the UI alive
             raise error(t("err_read", error=e)) from e
         if len(df) > MAX_ROWS:
@@ -333,7 +347,7 @@ def on_file(file, lang="en"):
         sensitive = scan_sensitive(build_texts(df, readable)) if readable else None
         found = {
             "name": Path(file).name, "rows": len(df), "columns": len(df.columns), "kind": info.kind,
-            "sep": info.sep, "encoding": info.encoding, "sheet": info.sheet,
+            "sep": info.sep, "encoding": info.encoding, "sheet": info.sheet, "reader": reader,
             "sensitive": dict(sensitive or {}),
         }
         return (
@@ -416,7 +430,7 @@ def _backend(checkpoint: str, texts: list[str], questions, engine: str = "laya")
 
 
 def on_run(file, columns, table, threshold, checkpoint, allow_sensitive, lang="en", engine="laya",
-           progress=gr.Progress()):
+           reader="tesseract", progress=gr.Progress()):
     with language(lang):
         if not file:
             raise error(t("err_no_file"))
@@ -429,7 +443,7 @@ def on_run(file, columns, table, threshold, checkpoint, allow_sensitive, lang="e
         if any(q.type in EXPERIMENTAL_TYPES for q in questions):
             warning(t("warn_score"))
 
-        df, info = read_table(file)
+        df, info = read_table(file, reader=reader)  # a document is not read again: documents.py caches it
         # before loading the model: personal data is only read with the user's confirmation
         sensitive = scan_sensitive(build_texts(df, columns))
         if sensitive and not allow_sensitive:
@@ -534,7 +548,8 @@ def _build() -> gr.Blocks:
         with gr.Row(equal_height=False):
             with gr.Column(scale=1, elem_classes="luar-step"):
                 headings["sheet"] = gr.Markdown(step_heading("sheet"))
-                upload = gr.File(label=t("upload"), file_types=[".csv", ".xlsx", ".xlsm", ".txt"])
+                upload = gr.File(label=t("upload"), file_types=[".csv", ".xlsx", ".xlsm", ".txt", *DOCUMENT_SUFFIXES])
+                reader = gr.Dropdown(reader_choices(), value="tesseract", label=t("reader"), info=t("reader_info"))
                 status = gr.Markdown()
                 columns = gr.CheckboxGroup(label=t("columns"), choices=[])
                 allow_sensitive = gr.Checkbox(label=t("allow_sensitive"), value=False, visible=False)
@@ -586,7 +601,8 @@ def _build() -> gr.Blocks:
             with gr.Tab(t("tab_table")) as table_tab:
                 result = gr.Dataframe(interactive=False, max_height=420, wrap=True)
 
-        def relabel(code, table, info, example_value, checkpoint_value, engine_value="laya"):
+        def relabel(code, table, info, example_value, checkpoint_value, engine_value="laya",
+                    reader_value="tesseract"):
             """Every text on the page in the chosen language. Results already shown (summary, table,
             files) stay as they were made: they are the output of that run."""
             code = normalize(code)
@@ -602,6 +618,7 @@ def _build() -> gr.Blocks:
                     gr.update(value=t("laya_missing", hint=INSTALL_HINT)),
                     *[gr.update(value=step_heading(step)) for step in headings],
                     gr.update(label=t("upload")),
+                    gr.update(choices=reader_choices(), value=reader_value, label=t("reader"), info=t("reader_info")),
                     gr.update(value=file_status(info)),
                     gr.update(label=t("columns")),
                     gr.update(label=t("allow_sensitive")),
@@ -623,21 +640,23 @@ def _build() -> gr.Blocks:
 
         relabelled = [
             lang_btn, readme_btn, *sample_btns, tagline, *manual_parts, laya_missing,
-            *headings.values(), upload, status, columns, allow_sensitive, example, questions, question_help,
+            *headings.values(), upload, reader, status, columns, allow_sensitive, example, questions, question_help,
             q_upload, q_save, q_file, threshold, engine, checkpoint, run, downloads, summary_tab, table_tab,
         ]
         # the language box changes in the page (button or first visit); the page is then re-labelled
-        lang.change(relabel, [lang, questions, file_info, example, checkpoint, engine], relabelled)
+        lang.change(relabel, [lang, questions, file_info, example, checkpoint, engine, reader], relabelled)
         lang_btn.click(None, lang, lang, js=TOGGLE_LANG_JS)
         demo.load(None, None, lang, js=LOAD_LANG_JS)
 
-        upload.change(on_file, [upload, lang], [columns, preview, status, source, allow_sensitive, file_info])
+        file_outputs = [columns, preview, status, source, allow_sensitive, file_info]
+        upload.change(on_file, [upload, lang, reader], file_outputs)
+        reader.input(on_file, [upload, lang, reader], file_outputs)  # read the document again with the new reader
         # .input, not .change: re-labelling the menu must not load the example again
         example.input(on_example, [example, lang], [upload, questions])
         q_upload.change(on_load_questions, [q_upload, lang], questions)
         q_save.click(on_save_questions, [questions, lang], q_file)
         run.click(
-            on_run, [source, columns, questions, threshold, checkpoint, allow_sensitive, lang, engine],
+            on_run, [source, columns, questions, threshold, checkpoint, allow_sensitive, lang, engine, reader],
             [result, summary, downloads],
         )
     return demo

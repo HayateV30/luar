@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from .documents import is_document
 from .i18n import t
 
 ENCODINGS = ("utf-8-sig", "cp1252", "latin-1")
@@ -22,7 +23,7 @@ MAX_XLSX_UNPACKED = 300 * 1024 * 1024
 class TableInfo:
     """How the source file was written, so the copy can be written the same way."""
     path: Path
-    kind: str  # "csv" or "excel"
+    kind: str  # "csv", "excel" or "document" (a PDF or an image, read page by page; written as .xlsx)
     sep: str = ","
     encoding: str = "utf-8-sig"
     sheet: str | None = None
@@ -35,11 +36,17 @@ def _sniff_sep(sample: str) -> str:
         return ";" if sample.count(";") > sample.count(",") else ","
 
 
-def read_table(path: str | Path, sheet: str | int | None = None) -> tuple[pd.DataFrame, TableInfo]:
+def read_table(path: str | Path, sheet: str | int | None = None,
+               reader: str = "tesseract") -> tuple[pd.DataFrame, TableInfo]:
     """Read a CSV or Excel file. CSVs are sniffed for separator (, ; tab |)
-    and encoding (UTF-8, then Windows-1252/Latin-1). All cells are read as text."""
+    and encoding (UTF-8, then Windows-1252/Latin-1). All cells are read as text.
+    A PDF or an image becomes one row per page (`documents.read_document`, with `reader`)."""
     path = Path(path)
     suffix = path.suffix.lower()
+    if is_document(path):
+        from .documents import read_document
+
+        return read_document(path, reader), TableInfo(path=path, kind="document", sheet="pages")
     if suffix in EXCEL_SUFFIXES:
         _check_excel(path)
         # openpyxl reads the XML through defusedxml when it is installed (a LUAR dependency);
@@ -97,7 +104,7 @@ def output_paths(info: TableInfo, out_dir: str | Path | None = None) -> tuple[Pa
     folder = Path(out_dir) if out_dir else info.path.parent
     folder.mkdir(parents=True, exist_ok=True)
     stem = info.path.stem
-    suffix = ".xlsx" if info.kind == "excel" else ".csv"
+    suffix = ".csv" if info.kind == "csv" else ".xlsx"
     table = free_path(folder / f"{stem}_luar{suffix}")
     summary = free_path(folder / f"{table.stem}_summary.md")
     return table, summary
@@ -106,7 +113,7 @@ def output_paths(info: TableInfo, out_dir: str | Path | None = None) -> tuple[Pa
 def write_table(df: pd.DataFrame, path: Path, info: TableInfo) -> Path:
     if path.exists():
         raise FileExistsError(t("t_overwrite", path=path))
-    if info.kind == "excel":
+    if info.kind in ("excel", "document"):
         sheet = info.sheet or "Sheet1"
         with pd.ExcelWriter(path, engine="openpyxl") as writer:
             df.to_excel(writer, index=False, sheet_name=sheet)

@@ -2,7 +2,7 @@
 from .engine import DEFAULT_THRESHOLD, Result, classify, run_file
 from .questions import Question, QuestionError, load_questions, parse_questions
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 __all__ = [
     "DEFAULT_THRESHOLD",
