@@ -543,7 +543,7 @@ You are probably running LUAR on a file that is already a LUAR result. Use the o
 change the question ids.
 
 **"The Laya engine could not be loaded".**
-Laya comes with LUAR, so this means a broken install. Run `pip install "laya==0.4.22"` and open LUAR
+Laya comes with LUAR, so this means a broken install. Run `pip install "laya==0.5.6"` and open LUAR
 again.
 
 **It is slow.**

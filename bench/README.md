@@ -10,7 +10,7 @@ public datasets labeled by people. The user manual summarizes them in
 - **How the engine is run:** exactly as a user would, with `run_file` on a CSV with `expected_*`
   columns and the default confidence threshold (0.7).
 - **Machine:** Windows laptop, Intel Iris Xe (no dedicated GPU), 16 GB RAM.
-- **Version:** Laya 0.4.22 with `auto` checkpoint. Laya 0.3.21 gave the same answers on these samples.
+- **Version:** Laya 0.5.6 with `auto` checkpoint. Laya 0.4.22 and 0.3.21 gave the same answers on these samples (0.5.6 was about 10–20% faster per row).
 
 | Dataset | Language | Questions | Labels from |
 |---|---|---|---|
@@ -32,7 +32,7 @@ the neutral and two-star cases more frequent than in the raw data.
 
 | | |
 |---|---|
-| Time per row | 0.74 s (AG News, 1 question) · 1.29 s (B2W, 3 questions) |
+| Time per row | 0.63 s (AG News, 1 question) · 1.09 s (B2W, 3 questions) |
 | Accuracy when confidence ≥ 0.7 (share of rows) | AG News 98% (84%) · B2W `noul` and `choice` 72–75% (82–83%), `score` 44% (44%) |
 | Expected calibration error (ECE) | AG News 0.085 · B2W 0.18 (`noul`, `choice`), 0.32 (`score`) |
 

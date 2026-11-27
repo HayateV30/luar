@@ -3,8 +3,8 @@
     "dataset": "b2w",
     "engine": "laya (multilingual, chosen automatically)",
     "rows": 300,
-    "seconds_total": 387.8,
-    "seconds_per_row": 1.29,
+    "seconds_total": 326.0,
+    "seconds_per_row": 1.09,
     "needs_review_share": 0.32,
     "questions": {
       "recomenda": {
@@ -98,8 +98,8 @@
     "dataset": "ag_news",
     "engine": "laya (english, chosen automatically)",
     "rows": 300,
-    "seconds_total": 223.4,
-    "seconds_per_row": 0.74,
+    "seconds_total": 188.0,
+    "seconds_per_row": 0.63,
     "needs_review_share": 0.157,
     "questions": {
       "topic": {

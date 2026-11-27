@@ -549,7 +549,7 @@ original, ou mude os ids das perguntas.
 
 **"The Laya engine could not be loaded".**
 A Laya vem junto com a LUAR, então isso indica uma instalação com defeito. Rode
-`pip install "laya==0.4.22"` e abra a LUAR de novo.
+`pip install "laya==0.5.6"` e abra a LUAR de novo.
 
 **Está lento.**
 A Laya leva de 30 a 60 segundos para carregar no início de cada sessão; depois disso processa cerca
